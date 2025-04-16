@@ -1,3 +1,8 @@
+--TODO :
+--     create a table of uniqueIndexes to reuse every time the game is played
+--     create the objects and place them outside the game room at some location
+--     use a modified CreateObjectAtLocation in initGameState and then use ResendPlace to move the snake in UpdateGame 
+
 -- Configuration
 local config = {
     
@@ -5,26 +10,32 @@ local config = {
     mainMenuId = 31450,
     gameOverId = 31451,
     
+    --seconds between snake updates (travel speed)
+    updateInterval = .2,
+    initialSnakeLength = 3,
+    
     --scales 
-    headScale = 1.25,
+    headScale = 1,
     bodyScale = .6,
     foodScale = 1.5,
-    wallScale = -1, --negative to invert the rectnagular stone block so we see the texture on the inside
+    wallScale = -1.25, --negative to invert the rectnagular stone block so we see the texture on the inside
     borderScale = 2,
     
     --sounds
     eatFoodSound = "Swallow",
     moveSound = "corpDRAG",
     
+    --cell used
     roomCell = "Vor Lair, Interior",
+    --location in cell
     roomPosition = {x = 0, y = 0, z = 0},
+    wallPosition = {x = 120, y = 120, z = 0},
+    --size of the game grid
     roomSize = 16,
-    initialSnakeLength = 3,
-    updateInterval = .4,
-    rotating_skooma_height_offset = 12,
+    
     objects = {
         snakeHead = "b_n_imperial_m_head_01",
-        snakeBody = "ingred_6th_corprusmeat_05",
+        snakeBody = "ingred_6th_corprusmeat_07",
         food = {
                     "rotating_skooma",
                     "rotating_skooma_pipe",
@@ -35,6 +46,9 @@ local config = {
         border = "misc_dwrv_ark_cube00"
         -- border = "light_de_lantern_14"
     },
+    --bring the skooma bottle up to floor level
+    rotating_skooma_height_offset = 14,
+    
     -- Specific rotations for the head
     headRotations = {
         raise = { rotX = 0, rotY = 0, rotZ = 180 },
@@ -46,9 +60,9 @@ local config = {
     },
     -- Player platform position
     platformPosition = {
-        x = 131,
-        y = -11,
-        z = 3
+        x = 120,
+        y = -4,
+        z = 0
     },
     commands = {
         start = "snake",
@@ -59,7 +73,63 @@ local config = {
         right = "right"
     },
     foodCollision = true,
-    initFood = true
+    initFood = true,
+    
+    --  "vo\\w\\m\\atk_wm002.mp3" fetcher bosmer
+    --  "vo\\w\\m\\hit_wm005.mp3" stupid bosmer
+    --  "vo\\o\\m\\hit_om009.mp3" orc fetcher
+    
+    -- Food-specific voice lines
+    foodVoiceLines = {
+        ["rotating_skooma"] = {
+            "vo\\d\\m\\tidl_dm015.mp3", -- dunmer burp
+            "vo\\a\\m\\idl_am008.mp3", -- argonian nom noms
+            "vo\\k\\m\\idl_km001.mp3", -- sweet skooma
+            "vo\\n\\m\\hit_nm005.mp3", -- nord groan
+            "vo\\r\\m\\hit_rm012.mp3", -- redguard groan
+            "Vo\\o\\m\\hit_om007.mp3", -- orc noise
+            "Vo\\o\\m\\hit_om006.mp3", -- orcnoise
+        },
+        ["rotating_skooma_pipe"] = {
+            "vo\\a\\m\\idl_am008.mp3", -- argonian nom noms
+            "vo\\d\\m\\idl_dm001.mp3", -- dunmer
+            "vo\\h\\m\\idl_hm008.mp3", -- altmer clear throat
+            "vo\\h\\m\\idl_hm007.mp3", -- altmer hummmmm
+            "Vo\\i\\m\\Idl_IM004.mp3",  --imperial clear throat
+            "Vo\\i\\m\\Idl_IM009.mp3",  --imperial clear throat
+            "vo\\k\\m\\idl_km001.mp3", -- sweet skooma
+            "vo\\n\\m\\idl_nm002.mp3", -- nord cough
+            "vo\\n\\m\\idl_nm004.mp3", -- nord cough
+            "vo\\n\\m\\idl_nm007.mp3", -- nord cough
+            "vo\\r\\m\\idl_rm009.mp3", -- redguard cough
+            "vo\\r\\m\\hit_rm007.mp3", -- redguard cough
+            "vo\\w\\m\\idl_wm002.mp3", -- bosmer cough
+            "Vo\\o\\m\\idl_om006.mp3", -- orc cough
+            "Vo\\o\\m\\idl_om007.mp3", -- orc clear throat
+            "Vo\\o\\m\\hit_om007.mp3", -- orc noise
+            "Vo\\o\\m\\hit_om006.mp3", -- orcnoise
+        },
+        ["rotating_moonsugar"] = {
+            "Vo\\o\\m\\Idl_OM005.mp3",   -- orc sniff
+            "Vo\\i\\m\\Idl_IM001.mp3",  --imperial sniff
+            "Vo\\i\\m\\Idl_IM002.mp3",
+            "vo\\d\\m\\idl_dm002.mp3", --dunmer
+            "vo\\a\\m\\hlo_am056.mp3", -- argonian
+            "vo\\a\\m\\idl_am008.mp3", -- argonian nom noms
+            "vo\\b\\m\\idl_bm009.mp3", --breton
+            "vo\\h\\m\\idl_hm009.mp3", -- altmer sniff
+            "vo\\k\\m\\idl_km004.mp3", -- khajiit sniff
+            "vo\\k\\m\\hlo_km133.mp3", -- our sugar is yours friend
+            "vo\\k\\m\\hlo_km120.mp3", -- welcome friend, share some sugar?
+            "vo\\k\\m\\idl_km009.mp3", -- sweet moon sugar.
+            "vo\\k\\m\\hlo_km091.mp3", -- some sugar for you, friend?
+            "vo\\n\\m\\idl_nm003.mp3", -- nord sniff
+            "vo\\n\\m\\sweetshare03.mp3", -- when the sugar is warmed by the pale hearth light, the happiness spreads throughout the night!
+            "vo\\r\\m\\idl_rm008.mp3", -- redguard sniff
+            "vo\\w\\m\\idl_wm001.mp3", -- bosmer sniff
+        },
+    }
+    
 }
 
 -- Global state
@@ -68,6 +138,11 @@ SnakeGame = {
     gameObjects = {},
     timers = {}
 }
+
+-- Helper function to convert degrees to radians
+local function degToRad(degrees)
+    return degrees * math.pi / 180
+end
 
 local function setScale(pid, cellDescription, uniqueIndex, refId, scale)
 
@@ -263,10 +338,10 @@ local function buildGameRoom(pid)
     
 
     local wallLocation = {
-        posX = config.platformPosition.x,
-        posY = config.platformPosition.y,
-        posZ = config.platformPosition.z,
-        rotX = -180,
+        posX = config.wallPosition.x,
+        posY = config.wallPosition.y,
+        posZ = config.wallPosition.z,
+        rotX = degToRad(-180),
         rotY = 0,
         rotZ = 0
     }
@@ -366,11 +441,6 @@ local function buildGameRoom(pid)
         end
     end
     
-    -- Helper function to convert degrees to radians
-    local function degToRad(degrees)
-        return degrees * math.pi / 180
-    end
-    
     -- Add a specific custom marker with exact console coordinates and converted angles
     local customMarkerLocation = {
         posX = 120.0,
@@ -404,6 +474,7 @@ local function buildGameRoom(pid)
     -- Teleport the player to the platform
        tes3mp.SetCell(pid, cellDescription)
        tes3mp.SetPos(pid, config.platformPosition.x, config.platformPosition.y, config.platformPosition.z + 1)
+       tes3mp.SetRot(pid, degToRad(60), 0)
        tes3mp.SendCell(pid)
        tes3mp.SendPos(pid)
 end
@@ -424,7 +495,8 @@ local function initGameState(pid)
         gameOver = false,
         headIndex = nil,
         segmentIndices = {},
-        foodIndex = nil
+        foodIndex = nil,
+        foodRefId = nil
     }
     
     local gameState = SnakeGame.activePlayers[playerName]
@@ -502,7 +574,7 @@ local function initGameState(pid)
         tes3mp.LogMessage(enumerations.log.INFO, 
             "[SnakeGame] Placed segment " .. i .. " at (" .. gameState.snake[i].x .. "," .. gameState.snake[i].y .. ")")
 
-        setScale(pid, config.roomCell, segmentIndex, segmentObject.refId, config.bodyScale)
+        -- setScale(pid, config.roomCell, segmentIndex, segmentObject.refId, config.bodyScale)
     end
     
     if config.initFood and not gameState.foodIndex then
@@ -515,7 +587,7 @@ local function initGameState(pid)
             rotY = 0,
             rotZ = 9
         }
-        
+
         -- Randomly select one of the food items
         local randomFoodIndex = math.random(1, #config.objects.food)
         local selectedFood = config.objects.food[randomFoodIndex]
@@ -537,6 +609,8 @@ local function initGameState(pid)
                                                                  foodLocation, 
                                                                  foodObject, 
                                                                  "place")
+        
+        gameState.foodRefId = foodObject.refId 
         
         table.insert(SnakeGame.gameObjects[playerName], {
             uniqueIndex = gameState.foodIndex,
@@ -696,7 +770,7 @@ function UpdateGame(pid)
     tes3mp.LogMessage(enumerations.log.INFO, 
         "[SnakeGame] New body segment placed at (" .. head.x .. "," .. head.y .. ")")
 
-    setScale(pid, config.roomCell, bodyIndex, bodyObject.refId, config.bodyScale)
+    -- setScale(pid, config.roomCell, bodyIndex, bodyObject.refId, config.bodyScale)
 
     -- Add the new head to the front of the snake
     table.insert(gameState.snake, 1, newHead)
@@ -715,14 +789,26 @@ function UpdateGame(pid)
         -- Keep the tail - we're growing
         tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] Ate food - growing snake")
         gameState.score = gameState.score + 1
+        
+        -- tes3mp.PlaySpeech(pid, "Vo\\o\\m\\Idl_OM005.mp3")
+        -- Play the basic food eating sound
         logicHandler.RunConsoleCommandOnPlayer(pid, "PlaySound " .. config.eatFoodSound, false)
+        
+        -- If there was a previous food and it has voice lines, play a random one
+        if gameState.foodRefId and config.foodVoiceLines[gameState.foodRefId] then
+            local voiceLines = config.foodVoiceLines[gameState.foodRefId]
+            local randomLine = voiceLines[math.random(1, #voiceLines)]
+            tes3mp.LogMessage(enumerations.log.INFO, 
+                "[SnakeGame] Playing voice line: " .. randomLine .. " for food: " .. gameState.foodRefId)
+            tes3mp.PlaySpeech(pid, randomLine)
+            -- tes3mp.PlaySpeech(pid, "Vo\\o\\m\\Idl_OM005.mp3")
+        end
         
         -- Remove old food
         if gameState.foodIndex then
             for i, obj in ipairs(SnakeGame.gameObjects[playerName]) do
                 if obj.uniqueIndex == gameState.foodIndex then
-                    -- DeleteObject(pid, obj.cell, obj.uniqueIndex, true)
-                   logicHandler.DeleteObject(pid, obj.cell, obj.uniqueIndex, true)
+                    logicHandler.DeleteObject(pid, obj.cell, obj.uniqueIndex, true)
                     table.remove(SnakeGame.gameObjects[playerName], i)
                     break
                 end
@@ -761,6 +847,8 @@ function UpdateGame(pid)
                                                                  foodLocation, 
                                                                  foodObject, 
                                                                  "place")
+        
+        gameState.foodRefId = foodObject.refId
         
         table.insert(SnakeGame.gameObjects[playerName], {
             uniqueIndex = gameState.foodIndex,
@@ -890,7 +978,7 @@ local function OnServerPostInitHandler()
     local scriptStore = RecordStores["script"]
     scriptStore.data.permanentRecords["test_RotateScript"] = { 
         scriptText = 
-    "begin test_RotateScript\nshort RotatingItem\nset RotatingItem to 1\nif ( RotatingItem == 1 )\nRotateWorld, Z, 0.5\nendif\nend\n"
+    "begin test_RotateScript\n\tshort RotatingItem\n\tset RotatingItem to 1\n\tif ( RotatingItem == 1 )\n\t\trotate, Z, 180\n\tendif\nend\n"
     }
 
     scriptStore:QuicksaveToDrive()
