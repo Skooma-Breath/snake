@@ -1,25 +1,31 @@
 --TODO :
---     create a table of uniqueIndexes to reuse every time the game is played
---     create the objects and place them outside the game room at some location
---     use a modified CreateObjectAtLocation in initGameState and then use ResendPlace to move the snake in UpdateGame 
+--      move the head then move the tail to the postion the head moved from.
+--      if atefood then move a new segment from the stack to behind the head and don't remove the tail. 
 
--- Configuration
-local config = {
+-- cfguration
+local cfg = {
     
     -- GUI IDs
     mainMenuId = 31450,
     gameOverId = 31451,
     
     --seconds between snake updates (travel speed)
-    updateInterval = .2,
+    updateInterval = .3,
     initialSnakeLength = 3,
+    
+    stagingLocation = {
+        x = 120.0,
+        y = 120.0,
+        z = -50
+    },
     
     --scales 
     headScale = 1,
     bodyScale = .6,
     foodScale = 1.5,
-    wallScale = -1.25, --negative to invert the rectnagular stone block so we see the texture on the inside
+    wallScale = -2000, --negative to invert the rectnagular stone block so we see the texture on the inside
     borderScale = 2,
+    floorScale = 10,
     
     --sounds
     eatFoodSound = "Swallow",
@@ -41,7 +47,7 @@ local config = {
                     "rotating_skooma_pipe",
                     "rotating_moonsugar"
                 },
-        wall = "ex_imp_plat_01",
+        wall = "potion_skooma_01",
         floor = "in_lava_1024",
         border = "misc_dwrv_ark_cube00"
         -- border = "light_de_lantern_14"
@@ -72,8 +78,10 @@ local config = {
         left = "left",
         right = "right"
     },
+    
     foodCollision = true,
     initFood = true,
+    initializing = false,
     
     --  "vo\\w\\m\\atk_wm002.mp3" fetcher bosmer
     --  "vo\\w\\m\\hit_wm005.mp3" stupid bosmer
@@ -82,45 +90,55 @@ local config = {
     -- Food-specific voice lines
     foodVoiceLines = {
         ["rotating_skooma"] = {
+            "vo\\a\\m\\idl_am008.mp3", -- argonian nom noms
             "vo\\d\\m\\tidl_dm015.mp3", -- dunmer burp
             "vo\\a\\m\\idl_am008.mp3", -- argonian nom noms
             "vo\\k\\m\\idl_km001.mp3", -- sweet skooma
+            "vo\\a\\m\\idl_am008.mp3", -- argonian nom noms
             "vo\\n\\m\\hit_nm005.mp3", -- nord groan
-            "vo\\r\\m\\hit_rm012.mp3", -- redguard groan
-            "Vo\\o\\m\\hit_om007.mp3", -- orc noise
-            "Vo\\o\\m\\hit_om006.mp3", -- orcnoise
+            "vo\\a\\m\\idl_am008.mp3", -- argonian nom noms
+            "Vo\\o\\m\\Idl_OM005.mp3",   -- orc sniff
+            -- "Vo\\o\\m\\hit_om007.mp3", -- orc noise
+            -- "Vo\\o\\m\\hit_om006.mp3", -- orcnoise
         },
         ["rotating_skooma_pipe"] = {
             "vo\\a\\m\\idl_am008.mp3", -- argonian nom noms
             "vo\\d\\m\\idl_dm001.mp3", -- dunmer
+            "vo\\a\\m\\idl_am008.mp3", -- argonian nom noms
             "vo\\h\\m\\idl_hm008.mp3", -- altmer clear throat
             "vo\\h\\m\\idl_hm007.mp3", -- altmer hummmmm
+            "vo\\a\\m\\idl_am008.mp3", -- argonian nom noms
             "Vo\\i\\m\\Idl_IM004.mp3",  --imperial clear throat
+            "vo\\a\\m\\idl_am008.mp3", -- argonian nom noms
+            "vo\\a\\m\\idl_am008.mp3", -- argonian nom noms
             "Vo\\i\\m\\Idl_IM009.mp3",  --imperial clear throat
             "vo\\k\\m\\idl_km001.mp3", -- sweet skooma
             "vo\\n\\m\\idl_nm002.mp3", -- nord cough
             "vo\\n\\m\\idl_nm004.mp3", -- nord cough
             "vo\\n\\m\\idl_nm007.mp3", -- nord cough
             "vo\\r\\m\\idl_rm009.mp3", -- redguard cough
-            "vo\\r\\m\\hit_rm007.mp3", -- redguard cough
             "vo\\w\\m\\idl_wm002.mp3", -- bosmer cough
             "Vo\\o\\m\\idl_om006.mp3", -- orc cough
             "Vo\\o\\m\\idl_om007.mp3", -- orc clear throat
-            "Vo\\o\\m\\hit_om007.mp3", -- orc noise
-            "Vo\\o\\m\\hit_om006.mp3", -- orcnoise
+            -- "Vo\\o\\m\\hit_om007.mp3", -- orc noise
+            -- "Vo\\o\\m\\hit_om006.mp3", -- orcnoise
         },
         ["rotating_moonsugar"] = {
             "Vo\\o\\m\\Idl_OM005.mp3",   -- orc sniff
             "Vo\\i\\m\\Idl_IM001.mp3",  --imperial sniff
             "Vo\\i\\m\\Idl_IM002.mp3",
+            "Vo\\o\\m\\Idl_OM005.mp3",   -- orc sniff
             "vo\\d\\m\\idl_dm002.mp3", --dunmer
+            "Vo\\o\\m\\Idl_OM005.mp3",   -- orc sniff
             "vo\\a\\m\\hlo_am056.mp3", -- argonian
+            "Vo\\o\\m\\Idl_OM005.mp3",   -- orc sniff
             "vo\\a\\m\\idl_am008.mp3", -- argonian nom noms
             "vo\\b\\m\\idl_bm009.mp3", --breton
             "vo\\h\\m\\idl_hm009.mp3", -- altmer sniff
             "vo\\k\\m\\idl_km004.mp3", -- khajiit sniff
             "vo\\k\\m\\hlo_km133.mp3", -- our sugar is yours friend
             "vo\\k\\m\\hlo_km120.mp3", -- welcome friend, share some sugar?
+            "vo\\n\\m\\sweetshare03.mp3", -- when the sugar is warmed by the pale hearth light, the happiness spreads throughout the night!
             "vo\\k\\m\\idl_km009.mp3", -- sweet moon sugar.
             "vo\\k\\m\\hlo_km091.mp3", -- some sugar for you, friend?
             "vo\\n\\m\\idl_nm003.mp3", -- nord sniff
@@ -139,6 +157,8 @@ SnakeGame = {
     timers = {}
 }
 
+local SNAKEGAMEJSONPATH = "custom/snakeGameCellData.json"
+
 -- Helper function to convert degrees to radians
 local function degToRad(degrees)
     return degrees * math.pi / 180
@@ -148,7 +168,7 @@ local function setScale(pid, cellDescription, uniqueIndex, refId, scale)
 
     tes3mp.ClearObjectList()
     tes3mp.SetObjectListPid(pid)
-    tes3mp.SetObjectListCell(config.roomCell)
+    tes3mp.SetObjectListCell(cfg.roomCell)
     local splitIndex = uniqueIndex:split("-")
     tes3mp.SetObjectRefNum(splitIndex[1])
     tes3mp.SetObjectMpNum(splitIndex[2])
@@ -171,35 +191,235 @@ local function DeleteObject(pid, cellDescription, uniqueIndex, forEveryone)
 end
 
 local function ResendPlace(pid, uniqueIndex, cellDescription, forEveryone)
-    DeleteObject(pid, cellDescription, uniqueIndex, forEveryone)
+    
     tes3mp.ClearObjectList()
     tes3mp.SetObjectListPid(pid)
     tes3mp.SetObjectListCell(cellDescription)
+    
     local object = LoadedCells[cellDescription].data.objectData[uniqueIndex]
-    if not object then return end
-    local inventory = LoadedCells[cellDescription].data.objectData[uniqueIndex].inventory
-    local scale = object.scale or 1
+    if not object then 
+        tes3mp.LogMessage(enumerations.log.ERROR, "[SnakeGame] ResendPlace: Object " .. uniqueIndex .. " not found in cell " .. cellDescription)
+        return 
+    end
+    
     if object and object.location and object.refId then
         local splitIndex = uniqueIndex:split("-")
         tes3mp.SetObjectRefNum(splitIndex[1])
         tes3mp.SetObjectMpNum(splitIndex[2])
         tes3mp.SetObjectRefId(object.refId)
-        tes3mp.SetObjectCharge(object.charge or -1)
-        tes3mp.SetObjectEnchantmentCharge(object.enchantmentCharge or -1)
+        
+        -- Set the position and rotation
         tes3mp.SetObjectPosition(object.location.posX, object.location.posY, object.location.posZ)
         tes3mp.SetObjectRotation(object.location.rotX, object.location.rotY, object.location.rotZ)
-    if object.scale == nil then object.scale = 1 end
-        tes3mp.SetObjectScale(object.scale)
+        
+        -- Set scale if present
+        if object.scale then
+            tes3mp.SetObjectScale(object.scale)
+        else
+            tes3mp.SetObjectScale(1.0)
+        end
+        
+        tes3mp.AddObject()
+        
+        -- Send ObjectMove instead of ObjectPlace to avoid recreating the object
+        tes3mp.SendObjectMove(forEveryone, false)
+        tes3mp.SendObjectRotate(forEveryone, false)
+        
+        if object.scale and object.scale ~= 1 then
+            tes3mp.SendObjectScale(forEveryone, false)
+        end
+        
+        tes3mp.LogMessage(enumerations.log.INFO, 
+            "[SnakeGame] ResendPlace: Moved object " .. uniqueIndex .. " (" .. object.refId .. ") to position " .. 
+            object.location.posX .. ", " .. object.location.posY .. ", " .. object.location.posZ)
+    else
+        tes3mp.LogMessage(enumerations.log.ERROR, "[SnakeGame] ResendPlace: Invalid object data for " .. uniqueIndex)
     end
-    tes3mp.SendObjectPlace(forEveryone, false)
-    -- tes3mp.SendObjectMove(forEveryone, false)
-    tes3mp.SendObjectRotate(forEveryone, false)
-    tes3mp.SendObjectScale(forEveryone, false)
+end
+
+local function createObjects(cellDescription, objectsToCreate, packetType, temp_object_uniqueIndex)
+    -- local uniqueIndexes = {}
+    local generatedRecordIdsPerType = {}
+    local unloadCellAtEnd = false
+    local shouldSendPacket = false
+    local uniqueIndex
+    local isValid
+
+    -- If the desired cell is not loaded, load it temporarily
+    if LoadedCells[cellDescription] == nil then
+        logicHandler.LoadCell(cellDescription)
+        unloadCellAtEnd = true
+    end
+
+    local cell = LoadedCells[cellDescription]
+
+    -- Only send a packet if there are players on the server to send it to
+    -- if tableHelper.getCount(Players) > 0 then
+        shouldSendPacket = true
+        tes3mp.ClearObjectList()
+    -- end
+
+    for _, object in pairs(objectsToCreate) do
+
+        local refId = object.refId
+        local count = object.count
+        local charge = object.charge
+        local enchantmentCharge = object.enchantmentCharge
+        local soul = object.soul
+        local location = object.location
+        -- tes3mp.LogAppend(enumerations.log.INFO, "------------------------- " .. "object.refId: " .. tostring(object.refId))
+        -- tes3mp.LogAppend(enumerations.log.INFO, "------------------------- " .. "object.scale: " .. tostring(object.scale))
+        if object.scale == nil then object.scale = 1 end
+        local scale = object.scale
+        
+        local mpNum
+        
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+        -- set the uniqueIndex to the one we passed in.
+        -- tes3mp.LogAppend(enumerations.log.INFO, "------------------------- " .. "temp_object_uniqueIndex: " .. temp_object_uniqueIndex)
+        -- tes3mp.LogAppend(enumerations.log.INFO, "------------------------- " .. "cfg.initializing: " .. tostring(cfg.initializing))
+        if cfg.initializing then 
+            mpNum = WorldInstance:GetCurrentMpNum() + 1
+            uniqueIndex =  0 .. "-" .. mpNum
+            isValid = true
+        else
+            tes3mp.LogAppend(enumerations.log.INFO, "------------------------- " .. "WHO THE FUCK SHIT MY PANTS.")
+            local splitIndex = temp_object_uniqueIndex:split("-")
+
+            mpNum = splitIndex[2]
+            uniqueIndex =  0 .. "-" .. mpNum
+            isValid = true
+        end
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+        -- Is this object based on a a generated record? If so, it needs special
+        -- handling here and further below
+        if logicHandler.IsGeneratedRecord(refId) then
+
+            local recordType = logicHandler.GetRecordTypeByRecordId(refId)
+
+            if RecordStores[recordType] ~= nil then
+
+                -- Add a link to this generated record in the cell it is being placed in
+                cell:AddLinkToRecord(recordType, refId, uniqueIndex)
+
+                if generatedRecordIdsPerType[recordType] == nil then
+                    generatedRecordIdsPerType[recordType] = {}
+                end
+
+                if shouldSendPacket and not tableHelper.containsValue(generatedRecordIdsPerType[recordType], refId) then
+                    table.insert(generatedRecordIdsPerType[recordType], refId)
+                end
+            else
+                isValid = false
+                tes3mp.LogMessage(enumerations.log.ERROR, "Attempt at creating object " .. refId ..
+                    " based on non-existent generated record")
+            end
+        end
+
+        if isValid then
+
+            -- table.insert(uniqueIndexes, uniqueIndex)
+            WorldInstance:SetCurrentMpNum(mpNum)
+            tes3mp.SetCurrentMpNum(mpNum)
+
+            cell:InitializeObjectData(uniqueIndex, refId)
+            cell.data.objectData[uniqueIndex].location = location
+            cell.data.objectData[uniqueIndex].scale = scale
+
+            if packetType == "place" then
+                table.insert(cell.data.packets.place, uniqueIndex)
+            elseif packetType == "spawn" then
+                table.insert(cell.data.packets.spawn, uniqueIndex)
+                table.insert(cell.data.packets.actorList, uniqueIndex)
+                -- if periodicCellResets.actor_spawn_tracker[cellDescription] == nil then
+                --     periodicCellResets.actor_spawn_tracker[cellDescription] = {}
+                --     table.insert(periodicCellResets.actor_spawn_tracker[cellDescription], uniqueIndex)
+                --     tes3mp.LogAppend(enumerations.log.INFO, "------------------------- " .. tostring(uniqueIndex) .. "was added to periodically.actor_spawn_tracker from modified_create_objects. \n")
+                -- else
+                --     table.insert(periodicCellResets.actor_spawn_tracker[cellDescription], uniqueIndex)
+                --     tes3mp.LogAppend(enumerations.log.INFO, "------------------------- " .. tostring(uniqueIndex) .. "was added to periodically.actor_spawn_tracker from modified_create_objects. \n")
+                -- end
+            end
+
+            -- Are there any players on the server? If so, initialize the object
+            -- list for the first one we find and just send the corresponding packet
+            -- to everyone
+            if shouldSendPacket then
+
+                -- local pid = tableHelper.getAnyValue(Players).pid
+                -- tes3mp.SetObjectListPid(pid)
+                tes3mp.SetObjectListCell(cellDescription)
+                tes3mp.SetObjectRefId(refId)
+                tes3mp.SetObjectRefNum(0)
+                tes3mp.SetObjectMpNum(mpNum)
+
+                if packetType == "place" then
+                    tes3mp.SetObjectCount(count)
+                    tes3mp.SetObjectCharge(charge)
+                    tes3mp.SetObjectEnchantmentCharge(enchantmentCharge)
+                    tes3mp.SetObjectSoul(soul)
+                end
+
+                tes3mp.SetObjectPosition(location.posX, location.posY, location.posZ)
+                tes3mp.SetObjectRotation(location.rotX, location.rotY, location.rotZ)
+                -- tes3mp.LogAppend(enumerations.log.INFO, "------------------------- " .. "scale: " .. tostring(scale))
+                tes3mp.SetObjectScale(scale)
+                tes3mp.AddObject()
+                
+                if scale ~= 1 then
+              		  tableHelper.insertValueIfMissing(LoadedCells[cellDescription].data.packets.scale, uniqueIndex)
+              	end
+            end
+        end
+    end
+
+    if shouldSendPacket then
+
+        -- Ensure the visitors to this cell have the records they need for the
+        -- objects we've created
+        for priorityLevel, recordStoreTypes in ipairs(config.recordStoreLoadOrder) do
+            for _, recordType in ipairs(recordStoreTypes) do
+                if generatedRecordIdsPerType[recordType] ~= nil then
+
+                    local recordStore = RecordStores[recordType]
+
+                    if recordStore ~= nil then
+
+                        local idArray = generatedRecordIdsPerType[recordType]
+
+                        for _, visitorPid in pairs(cell.visitors) do
+                            recordStore:LoadGeneratedRecords(visitorPid, recordStore.data.generatedRecords, idArray)
+                        end
+                    end
+                end
+            end
+        end
+
+        if packetType == "place" then
+            tes3mp.SendObjectPlace(true, false)
+            -- tes3mp.LogAppend(enumerations.log.INFO, "------------------------- " .. "scale: " .. tostring(scale))
+            tes3mp.SendObjectRotate(true, false)
+            tes3mp.SendObjectScale(true, false)
+        elseif packetType == "spawn" then
+            tes3mp.SendObjectSpawn(true)
+        end
+    end
+
+    -- tes3mp.LogAppend(enumerations.log.INFO, "------------------------- " .. "LoadedCells[cellDescription].data.packets.scale: " .. tostring(LoadedCells[cellDescription].data.packets.scale))
+    -- tes3mp.LogAppend(enumerations.log.INFO, "------------------------- " .. "uniqueIndex: " .. tostring(temp_object_uniqueIndex))
+    -- tableHelper.print(LoadedCells[cellDescription].data.packets.scale)
+    -- tableHelper.print(LoadedCells[cellDescription].data.objectData[temp_object_uniqueIndex])
+
+    cell:Save() --TODO re enable this if thigs aren't saving ( or use QuicksaveToDrive )
+    -- cell:QuicksaveToDrive()
+
+    if unloadCellAtEnd then
+        logicHandler.UnloadCell(cellDescription)
+    end
     
-    if scale ~= 1 then
-        tableHelper.insertValueIfMissing(LoadedCells[cellDescription].data.packets.scale, uniqueIndex)
-    end
-   
+
+    return uniqueIndex
 end
 
 -- Stop game and clean up
@@ -214,26 +434,49 @@ local function stopGame(pid)
     
     if SnakeGame.gameObjects[playerName] then
         tes3mp.LogMessage(enumerations.log.INFO, 
-            "[SnakeGame] Clearing " .. #SnakeGame.gameObjects[playerName] .. " objects for " .. playerName)
-            
+            "[SnakeGame] Moving " .. #SnakeGame.gameObjects[playerName] .. " objects back to staging area for " .. playerName)
+        
+        -- Set up a single common staging location far away from the game area
+        local stagingLocation = cfg.stagingLocation
+        
         for i = #SnakeGame.gameObjects[playerName], 1, -1 do
             local object = SnakeGame.gameObjects[playerName][i]
             if object and object.uniqueIndex and logicHandler.IsCellLoaded(object.cell) then
-                -- Try to delete each object
-                local success = pcall(function() 
-                    -- DeleteObject(pid, object.cell, object.uniqueIndex, true)
-                    logicHandler.DeleteObject(pid, object.cell, object.uniqueIndex, true)
-                end)
-                
-                if not success then
+                -- Move the object back to staging area
+                if LoadedCells[object.cell].data.objectData[object.uniqueIndex] then
+                    LoadedCells[object.cell].data.objectData[object.uniqueIndex].location = {
+                        posX = stagingLocation.x,
+                        posY = stagingLocation.y,
+                        posZ = stagingLocation.z,
+                        rotX = 0,
+                        rotY = 0,
+                        rotZ = 0
+                    }
+                    if LoadedCells[object.cell].data.objectData[object.uniqueIndex].refId == cfg.objects.snakeHead then
+                        -- move head back to starting position
+                        LoadedCells[object.cell].data.objectData[object.uniqueIndex].location = {
+                            posX = stagingLocation.x,
+                            posY = stagingLocation.y,
+                            posZ = cfg.roomPosition.z + 9.5,
+                            rotX = math.rad(cfg.headRotations.right.rotX),
+                            rotY = math.rad(cfg.headRotations.right.rotY),
+                            rotZ = math.rad(cfg.headRotations.right.rotZ)
+                        }
+                    end
+                    
+                    ResendPlace(pid, object.uniqueIndex, object.cell, true)
+                    
+                    tes3mp.LogMessage(enumerations.log.INFO, 
+                        "[SnakeGame] Moved " .. object.type .. " back to staging area")
+                else
                     tes3mp.LogMessage(enumerations.log.WARN, 
-                        "[SnakeGame] Failed to delete object " .. object.uniqueIndex)
+                        "[SnakeGame] Could not find object " .. object.uniqueIndex .. " in cell " .. object.cell)
                 end
             end
         end
         
         SnakeGame.gameObjects[playerName] = nil
-        tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] Cleared all objects for " .. playerName)
+        tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] Cleared all tracked objects for " .. playerName)
     end
     
     SnakeGame.activePlayers[playerName] = nil
@@ -260,39 +503,10 @@ local function gameOver(pid, reason)
         -- tes3mp.MessageBox(pid, -1, message .. " Score: " .. gameState.score)
         --  -- Show game over message
         local message = reason .. "\nFinal Score: " .. gameState.score
-        tes3mp.CustomMessageBox(pid, config.gameOverId, "Game Over\n" .. color.Red .. message,
+        tes3mp.CustomMessageBox(pid, cfg.gameOverId, "Game Over\n" .. color.Red .. message,
                                 color.Green .. "Play Again;" ..
                                 color.Yellow .. "Quit")
         -- stopGame(pid)
-    end
-end
-
--- Clear specific snake parts (tail only when not growing)
-local function clearSnake(pid, tailIndex, grew)
-    local playerName = string.lower(Players[pid].accountName)
-    
-    tes3mp.LogMessage(enumerations.log.WARN, "[SnakeGame] tailIndex " .. tostring(tailIndex))
-    tes3mp.LogMessage(enumerations.log.WARN, "[SnakeGame] grew " .. tostring(grew))
-    
-    if not SnakeGame.gameObjects[playerName] then 
-        tes3mp.LogMessage(enumerations.log.WARN, "[SnakeGame] No game objects for " .. playerName)
-        return 
-    end
-    
-    if tailIndex and not grew then
-        for i = #SnakeGame.gameObjects[playerName], 1, -1 do
-            local object = SnakeGame.gameObjects[playerName][i]
-            tes3mp.LogMessage(enumerations.log.WARN, "[SnakeGame] who's pants just got shit? " .. playerName)
-            if object and object.uniqueIndex == tailIndex then
-                if logicHandler.IsCellLoaded(object.cell) then
-                    logicHandler.DeleteObject(pid, object.cell, object.uniqueIndex, true)
-                    table.remove(SnakeGame.gameObjects[playerName], i)
-                    tes3mp.LogMessage(enumerations.log.INFO, 
-                        "[SnakeGame] Cleared tail with index " .. object.uniqueIndex .. " for " .. playerName)
-                end
-                break
-            end
-        end
     end
 end
 
@@ -301,7 +515,7 @@ local function placeFood(pid)
     local playerName = string.lower(Players[pid].accountName)
     local gameState = SnakeGame.activePlayers[playerName]
     
-    local foodPos = {x = math.random(0, config.roomSize - 1), y = math.random(0, config.roomSize - 1)}
+    local foodPos = {x = math.random(0, cfg.roomSize - 1), y = math.random(0, cfg.roomSize - 1)}
     
     for _, segment in ipairs(gameState.snake) do
         if foodPos.x == segment.x and foodPos.y == segment.y then
@@ -322,7 +536,7 @@ local function startGameTimer(pid)
     end
     
     SnakeGame.timers[playerName] = tes3mp.CreateTimerEx("UpdateGame", 
-                                                        math.floor(config.updateInterval * 1000), 
+                                                        math.floor(cfg.updateInterval * 1000), 
                                                         "i", 
                                                         pid)
     
@@ -332,22 +546,22 @@ end
 -- Build the game room with walls
 local function buildGameRoom(pid)
     local playerName = string.lower(Players[pid].accountName)
-    local cellDescription = config.roomCell
+    local cellDescription = cfg.roomCell
     
     SnakeGame.gameObjects[playerName] = SnakeGame.gameObjects[playerName] or {}
     
 
     local wallLocation = {
-        posX = config.wallPosition.x,
-        posY = config.wallPosition.y,
-        posZ = config.wallPosition.z,
+        posX = cfg.wallPosition.x,
+        posY = cfg.wallPosition.y,
+        posZ = cfg.wallPosition.z,
         rotX = degToRad(-180),
         rotY = 0,
         rotZ = 0
     }
     
     local wallObject = {
-        refId = config.objects.wall,
+        refId = cfg.objects.wall,
         count = 1,
         charge = -1,
         enchantmentCharge = -1,
@@ -360,7 +574,7 @@ local function buildGameRoom(pid)
                                                          "place")
     
     
-    setScale(pid, cellDescription, wallIndex,wallObject.refId, config.wallScale)
+    setScale(pid, cellDescription, wallIndex,wallObject.refId, cfg.wallScale)
     
     table.insert(SnakeGame.gameObjects[playerName], {
         uniqueIndex = wallIndex,
@@ -369,19 +583,19 @@ local function buildGameRoom(pid)
     })
     
     tes3mp.LogMessage(enumerations.log.INFO, 
-                    "[SnakeGame] Placed wall at (" .. config.roomPosition.x .. "," .. config.roomPosition.y .. ",0)")
+                    "[SnakeGame] Placed wall at (" .. cfg.roomPosition.x .. "," .. cfg.roomPosition.y .. ",0)")
     
     local floorLocation = {
-        posX = config.roomPosition.x,
-        posY = config.roomPosition.y, 
-        posZ = config.roomPosition.z - 23, -- Slightly below ground
+        posX = cfg.roomPosition.x,
+        posY = cfg.roomPosition.y, 
+        posZ = cfg.roomPosition.z - 23, -- Slightly below ground
         rotX = 0,
         rotY = 0,
         rotZ = 0
     }
         
     local floorObject = {
-        refId = config.objects.floor, -- A flat object for the floor
+        refId = cfg.objects.floor, -- A flat object for the floor
         count = 1,
         charge = -1,
         enchantmentCharge = -1,
@@ -401,11 +615,11 @@ local function buildGameRoom(pid)
     })
     
     -- Place markers along the full square border instead of just corners
-    local size = config.roomSize
+    local size = cfg.roomSize
     local step = 1  -- step size in grid units
     
     local markerObject = {
-        refId = config.objects.border,
+        refId = cfg.objects.border,
         count = 1,
         charge = -1,
         enchantmentCharge = -1,
@@ -417,9 +631,9 @@ local function buildGameRoom(pid)
             -- Check if the current point is on the border
             if x == -1 or x == size or y == -1 or y == size then
                 local markerLocation = {
-                    posX = config.roomPosition.x + (x * 16),
-                    posY = config.roomPosition.y + (y * 16),
-                    posZ = config.roomPosition.z + 8,
+                    posX = cfg.roomPosition.x + (x * 16),
+                    posY = cfg.roomPosition.y + (y * 16),
+                    posZ = cfg.roomPosition.z + 8,
                     rotX = 0,
                     rotY = 0,
                     rotZ = 0
@@ -430,7 +644,7 @@ local function buildGameRoom(pid)
                                                          markerObject, 
                                                          "place")
                 
-                setScale(pid, cellDescription, markerIndex, markerObject.refId, config.borderScale)
+                setScale(pid, cellDescription, markerIndex, markerObject.refId, cfg.borderScale)
     
                 table.insert(SnakeGame.gameObjects[playerName], {
                     uniqueIndex = markerIndex,
@@ -473,7 +687,7 @@ local function buildGameRoom(pid)
     
     -- Teleport the player to the platform
        tes3mp.SetCell(pid, cellDescription)
-       tes3mp.SetPos(pid, config.platformPosition.x, config.platformPosition.y, config.platformPosition.z + 1)
+       tes3mp.SetPos(pid, cfg.platformPosition.x, cfg.platformPosition.y, cfg.platformPosition.z + 1)
        tes3mp.SetRot(pid, degToRad(60), 0)
        tes3mp.SendCell(pid)
        tes3mp.SendPos(pid)
@@ -482,11 +696,28 @@ end
 -- Initialize game state
 local function initGameState(pid)
     local playerName = string.lower(Players[pid].accountName)
+    local cellDescription = cfg.roomCell
     
     if SnakeGame.activePlayers[playerName] then
         stopGame(pid)
     end
     
+    -- Make sure objects are initialized
+    if not SnakeGame.preCreatedObjects then
+        if jsonInterface.load(SNAKEGAMEJSONPATH) ~= nil then
+            SnakeGame.preCreatedObjects = jsonInterface.load(SNAKEGAMEJSONPATH)
+            tes3mp.LogMessage(enumerations.log.INFO, 
+                "[SnakeGame] Loaded pre-created objects from " .. SNAKEGAMEJSONPATH)
+        else
+            -- First time initialization
+            tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] First-time initialization")
+            cfg.initializing = true
+            InitializeGameObjects()
+            cfg.initializing = false
+        end
+    end
+    
+    -- Initialize game state variables
     SnakeGame.activePlayers[playerName] = {
         snake = {},
         food = {x = 0, y = 0},
@@ -496,156 +727,145 @@ local function initGameState(pid)
         headIndex = nil,
         segmentIndices = {},
         foodIndex = nil,
-        foodRefId = nil
+        foodRefId = nil,
+        usedBodyIndices = {} 
     }
     
+    -- Set up initial snake position
     local gameState = SnakeGame.activePlayers[playerName]
-    local centerX = math.floor(config.roomSize / 2)
-    local centerY = math.floor(config.roomSize / 2)
+    local centerX = math.floor(cfg.roomSize / 2)
+    local centerY = math.floor(cfg.roomSize / 2)
     
-    for i = 1, config.initialSnakeLength do
+    for i = 1, cfg.initialSnakeLength do
         table.insert(gameState.snake, {x = centerX - (i - 1), y = centerY})
     end
     
+    -- Initialize game objects array for this player (only to track dynamic objects)
     SnakeGame.gameObjects[playerName] = {}
     
-    -- Place head
-    local headLocation = {
-        posX = config.roomPosition.x + (gameState.snake[1].x * 16),
-        posY = config.roomPosition.y + (gameState.snake[1].y * 16),
-        posZ = config.roomPosition.z + 9.5,
-        rotX = math.rad(config.headRotations.right.rotX),
-        rotY = math.rad(config.headRotations.right.rotY),
-        rotZ = math.rad(config.headRotations.right.rotZ)
-    }
-    
-    local headObject = {
-        refId = config.objects.snakeHead,
-        count = 1,
-        charge = -1,
-        enchantmentCharge = -1,
-        soul = ""
-    }
-    
-    gameState.headIndex = logicHandler.CreateObjectAtLocation(config.roomCell, 
-                                                             headLocation, 
-                                                             headObject, 
-                                                             "place")
-    
-    table.insert(SnakeGame.gameObjects[playerName], {
-        uniqueIndex = gameState.headIndex,
-        cell = config.roomCell,
-        type = "head"
-    })
-    
-    setScale(pid, config.roomCell, gameState.headIndex, headObject.refId, config.headScale)
-    
-    -- Place body segments
-    for i = 2, #gameState.snake do
-        local segmentLocation = {
-            posX = config.roomPosition.x + (gameState.snake[i].x * 16),
-            posY = config.roomPosition.y + (gameState.snake[i].y * 16),
-            posZ = config.roomPosition.z + 9.3,
-            rotX = 0,
-            rotY = 0,
-            rotZ = 0
-        }
-        
-        local segmentObject = {
-            refId = config.objects.snakeBody,
-            count = 1,
-            charge = -1,
-            enchantmentCharge = -1,
-            soul = ""
-        }
-        
-        local segmentIndex = logicHandler.CreateObjectAtLocation(config.roomCell, 
-                                                                segmentLocation, 
-                                                                segmentObject, 
-                                                                "place")
-        
-        gameState.segmentIndices[i] = segmentIndex
-        table.insert(SnakeGame.gameObjects[playerName], {
-            uniqueIndex = segmentIndex,
-            cell = config.roomCell,
-            type = "body"
-        })
-        
-        tes3mp.LogMessage(enumerations.log.INFO, 
-            "[SnakeGame] Placed segment " .. i .. " at (" .. gameState.snake[i].x .. "," .. gameState.snake[i].y .. ")")
+    -- track the pre created head
+    if SnakeGame.preCreatedObjects.head then
 
-        -- setScale(pid, config.roomCell, segmentIndex, segmentObject.refId, config.bodyScale)
+        gameState.headIndex = SnakeGame.preCreatedObjects.head.uniqueIndex
+
+        -- Track this dynamic object
+        table.insert(SnakeGame.gameObjects[playerName], {
+            uniqueIndex = gameState.headIndex,
+            cell = cellDescription,
+            type = "head"
+        })
+
+    else
+        tes3mp.LogMessage(enumerations.log.ERROR, 
+            "[SnakeGame] Pre-created head not available, cannot start game")
+        return
     end
     
-    if config.initFood and not gameState.foodIndex then
+    -- Place initial food using a pre-created food object
+    if cfg.initFood then
         placeFood(pid)
-        local foodLocation = {
-            posX = config.roomPosition.x + (gameState.food.x * 16),
-            posY = config.roomPosition.y + (gameState.food.y * 16),
-            posZ = config.roomPosition.z + 0.5,
-            rotX = 0,
-            rotY = 0,
-            rotZ = 9
-        }
-
-        -- Randomly select one of the food items
-        local randomFoodIndex = math.random(1, #config.objects.food)
-        local selectedFood = config.objects.food[randomFoodIndex]
         
-        -- Special height adjustment for rotating_skooma
-        if selectedFood == "rotating_skooma" then
-            foodLocation.posZ = foodLocation.posZ + config.rotating_skooma_height_offset  -- 9 units higher
+        if SnakeGame.preCreatedObjects.food then
+            -- Randomly select one of the food items
+            local randomFoodIndex = math.random(1, #cfg.objects.food)
+            local selectedFood = cfg.objects.food[randomFoodIndex]
+            
+            -- Find the matching pre-created food object
+            local preCreatedFoodObject = nil
+            for _, foodObj in ipairs(SnakeGame.preCreatedObjects.food) do
+                if foodObj.refId == selectedFood then
+                    preCreatedFoodObject = foodObj
+                    break
+                end
+            end
+            
+            if preCreatedFoodObject then
+                local foodLocation = {
+                    posX = cfg.roomPosition.x + (gameState.food.x * 16),
+                    posY = cfg.roomPosition.y + (gameState.food.y * 16),
+                    posZ = cfg.roomPosition.z + 0.5,
+                    rotX = 0,
+                    rotY = 0,
+                    rotZ = 9
+                }
+                
+                -- Special height adjustment for rotating_skooma
+                if selectedFood == "rotating_skooma" then
+                    foodLocation.posZ = foodLocation.posZ + cfg.rotating_skooma_height_offset
+                end
+                
+                local uniqueIndex = preCreatedFoodObject.uniqueIndex
+                
+                if LoadedCells[cellDescription].data.objectData[uniqueIndex] then
+                    LoadedCells[cellDescription].data.objectData[uniqueIndex].location = {
+                        posX = foodLocation.posX,
+                        posY = foodLocation.posY,
+                        posZ = foodLocation.posZ,
+                        rotX = foodLocation.rotX,
+                        rotY = foodLocation.rotY,
+                        rotZ = foodLocation.rotZ
+                    }
+                    
+                    ResendPlace(pid, uniqueIndex, cellDescription, true)
+                    gameState.foodIndex = uniqueIndex
+                    gameState.foodRefId = selectedFood
+                    
+                    -- Track this dynamic object
+                    table.insert(SnakeGame.gameObjects[playerName], {
+                        uniqueIndex = uniqueIndex,
+                        cell = cellDescription,
+                        type = "food"
+                    })
+                    
+                    tes3mp.LogMessage(enumerations.log.INFO, 
+                        "[SnakeGame] Placed food (" .. selectedFood .. ") at (" .. gameState.food.x .. "," .. gameState.food.y .. ")")
+                else
+                    tes3mp.LogMessage(enumerations.log.ERROR, 
+                        "[SnakeGame] Pre-created food object not found in cell")
+                end
+            else
+                tes3mp.LogMessage(enumerations.log.ERROR, 
+                    "[SnakeGame] Selected food " .. selectedFood .. " not found in pre-created objects")
+            end
+        else
+            tes3mp.LogMessage(enumerations.log.ERROR, 
+                "[SnakeGame] Pre-created food not available")
         end
-        
-        local foodObject = {
-            refId = selectedFood,
-            count = 1,
-            charge = -1,
-            enchantmentCharge = -1,
-            soul = ""
-        }
-        
-        gameState.foodIndex = logicHandler.CreateObjectAtLocation(config.roomCell, 
-                                                                 foodLocation, 
-                                                                 foodObject, 
-                                                                 "place")
-        
-        gameState.foodRefId = foodObject.refId 
-        
-        table.insert(SnakeGame.gameObjects[playerName], {
-            uniqueIndex = gameState.foodIndex,
-            cell = config.roomCell,
-            type = "food"
-        })
-        
-        setScale(pid, config.roomCell, gameState.foodIndex, foodObject.refId, config.foodScale)
-        
-        tes3mp.LogMessage(enumerations.log.INFO, 
-            "[SnakeGame] Initial food (" .. selectedFood .. ") placed at (" .. gameState.food.x .. "," .. gameState.food.y .. ")")
     end
     
-    -- placeFood(pid)
-    buildGameRoom(pid)
+    -- Teleport the player to the platform
+    tes3mp.SetCell(pid, cellDescription)
+    tes3mp.SetPos(pid, cfg.platformPosition.x, cfg.platformPosition.y, cfg.platformPosition.z + 1)
+    tes3mp.SetRot(pid, degToRad(60), 0)
+    tes3mp.SendCell(pid)
+    tes3mp.SendPos(pid)
+    
+    -- Apply the player control settings
+    logicHandler.RunConsoleCommandOnPlayer(pid, "DisableVanityMode", false)
+    logicHandler.RunConsoleCommandOnPlayer(pid, "DisablePlayerViewSwitch", false)
+    logicHandler.RunConsoleCommandOnPlayer(pid, "PCForce1stPerson", false)
+    
+    -- Start the game timer
     startGameTimer(pid)
     
     tes3mp.MessageBox(pid, -1, "Snake Game Started! Use chat commands: " .. 
-                             config.commands.up .. ", " .. 
-                             config.commands.down .. ", " ..
-                             config.commands.left .. ", " ..
-                             config.commands.right .. " to control the snake.")
+                             cfg.commands.up .. ", " .. 
+                             cfg.commands.down .. ", " ..
+                             cfg.commands.left .. ", " ..
+                             cfg.commands.right .. " to control the snake.")
 end
 
 -- Update game logic
 function UpdateGame(pid)
     local playerName = string.lower(Players[pid].accountName)
     local gameState = SnakeGame.activePlayers[playerName]
+    local cellDescription = cfg.roomCell
     
     if not gameState or gameState.gameOver then
         tes3mp.LogMessage(enumerations.log.ERROR, "[SnakeGame] No game state or game over for " .. playerName)
         return
     end
     
-    local cellDescription = config.roomCell
     local head = gameState.snake[1]
     tes3mp.LogMessage(enumerations.log.INFO, 
         "[SnakeGame] Updating game for " .. playerName .. 
@@ -669,8 +889,8 @@ function UpdateGame(pid)
         "[SnakeGame] New head position: (" .. newHead.x .. "," .. newHead.y .. ")")
     
     -- Check wall collisions
-    if newHead.x < 0 or newHead.x >= config.roomSize or 
-       newHead.y < 0 or newHead.y >= config.roomSize then
+    if newHead.x < 0 or newHead.x >= cfg.roomSize or 
+       newHead.y < 0 or newHead.y >= cfg.roomSize then
         tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] Wall collision detected")
         gameOver(pid, "You hit a wall!")
         return
@@ -686,92 +906,95 @@ function UpdateGame(pid)
     end
     
     -- Check if we're eating food
-    local ateFood = (config.foodCollision and newHead.x == gameState.food.x and newHead.y == gameState.food.y) or
-                    (config.initFood and not gameState.foodIndex)
+    local ateFood = (cfg.foodCollision and newHead.x == gameState.food.x and newHead.y == gameState.food.y) or
+                    (cfg.initFood and not gameState.foodIndex)
     
-    -- Remove old head visually
-    if gameState.headIndex then
-        for i, obj in ipairs(SnakeGame.gameObjects[playerName]) do
-            if obj.uniqueIndex == gameState.headIndex then
-                -- DeleteObject(pid, obj.cell, obj.uniqueIndex, true)
-                logicHandler.DeleteObject(pid, obj.cell, obj.uniqueIndex, true)
-                table.remove(SnakeGame.gameObjects[playerName], i)
-                tes3mp.LogMessage(enumerations.log.INFO, 
-                    "[SnakeGame] Cleared head with index " .. obj.uniqueIndex .. " for " .. playerName)
-                break
-            end
-        end
-    end
-    
-    -- Place new head
-    local headRotation = config.headRotations[gameState.direction]
+    -- Move snake head to new position
+    local headRotation = cfg.headRotations[gameState.direction]
     local headLocation = {
-        posX = config.roomPosition.x + (newHead.x * 16),
-        posY = config.roomPosition.y + (newHead.y * 16),
-        posZ = config.roomPosition.z + 9.5,
+        posX = cfg.roomPosition.x + (newHead.x * 16),
+        posY = cfg.roomPosition.y + (newHead.y * 16),
+        posZ = cfg.roomPosition.z + 9.5,
         rotX = math.rad(headRotation.rotX),
         rotY = math.rad(headRotation.rotY),
         rotZ = math.rad(headRotation.rotZ)
     }
     
-    local headObject = {
-        refId = config.objects.snakeHead,
-        count = 1,
-        charge = -1,
-        enchantmentCharge = -1,
-        soul = ""
-    }
+    if LoadedCells[cellDescription].data.objectData[gameState.headIndex] then
+        LoadedCells[cellDescription].data.objectData[gameState.headIndex].location = {
+            posX = headLocation.posX,
+            posY = headLocation.posY,
+            posZ = headLocation.posZ,
+            rotX = headLocation.rotX,
+            rotY = headLocation.rotY,
+            rotZ = headLocation.rotZ
+        }
+        
+        ResendPlace(pid, gameState.headIndex, cellDescription, true)
+        
+        tes3mp.LogMessage(enumerations.log.INFO, 
+            "[SnakeGame] Moved head to (" .. newHead.x .. "," .. newHead.y .. ")")
+    else
+        tes3mp.LogMessage(enumerations.log.ERROR, 
+            "[SnakeGame] Head object not found, cannot update game")
+        return
+    end
     
-    gameState.headIndex = logicHandler.CreateObjectAtLocation(cellDescription, 
-                                                             headLocation, 
-                                                             headObject, 
-                                                             "place")
+    -- Find an unused body segment from the pre-created ones
+    local bodySegmentIndex = nil
     
-    table.insert(SnakeGame.gameObjects[playerName], {
-        uniqueIndex = gameState.headIndex,
-        cell = cellDescription,
-        type = "head"
-    })
+    -- Look for the next available body segment
+    for i, bodyObj in ipairs(SnakeGame.preCreatedObjects.body) do
+        if not gameState.usedBodyIndices[bodyObj.uniqueIndex] then
+            bodySegmentIndex = bodyObj.uniqueIndex
+            gameState.usedBodyIndices[bodySegmentIndex] = true
+            break
+        end
+    end
     
-    setScale(pid, config.roomCell, gameState.headIndex, headObject.refId, config.headScale)
-    
-    tes3mp.LogMessage(enumerations.log.INFO, 
-        "[SnakeGame] Head placed at (" .. newHead.x .. "," .. newHead.y .. ")")
+    if not bodySegmentIndex then
+        tes3mp.LogMessage(enumerations.log.ERROR, 
+            "[SnakeGame] No available body segments found, cannot update game")
+        return
+    end
     
     -- Place body segment at old head position
     local bodyLocation = {
-        posX = config.roomPosition.x + (head.x * 16),
-        posY = config.roomPosition.y + (head.y * 16),
-        posZ = config.roomPosition.z + 9.3,
+        posX = cfg.roomPosition.x + (head.x * 16),
+        posY = cfg.roomPosition.y + (head.y * 16),
+        posZ = cfg.roomPosition.z + 9.3,
         rotX = 0,
         rotY = 0,
         rotZ = 0
     }
     
-    local bodyObject = {
-        refId = config.objects.snakeBody,
-        count = 1,
-        charge = -1,
-        enchantmentCharge = -1,
-        soul = ""
-    }
+    if LoadedCells[cellDescription].data.objectData[bodySegmentIndex] then
+        LoadedCells[cellDescription].data.objectData[bodySegmentIndex].location = {
+            posX = bodyLocation.posX,
+            posY = bodyLocation.posY,
+            posZ = bodyLocation.posZ,
+            rotX = bodyLocation.rotX,
+            rotY = bodyLocation.rotY,
+            rotZ = bodyLocation.rotZ
+        }
+        
+        ResendPlace(pid, bodySegmentIndex, cellDescription, true)
+        
+        -- Add this segment to the tracked objects
+        table.insert(SnakeGame.gameObjects[playerName], {
+            uniqueIndex = bodySegmentIndex,
+            cell = cellDescription,
+            type = "body"
+        })
+        
+        tes3mp.LogMessage(enumerations.log.INFO, 
+            "[SnakeGame] Placed body segment at old head position (" .. head.x .. "," .. head.y .. ")")
+    else
+        tes3mp.LogMessage(enumerations.log.ERROR, 
+            "[SnakeGame] Body segment not found, cannot update game")
+        return
+    end
     
-    local bodyIndex = logicHandler.CreateObjectAtLocation(cellDescription, 
-                                                         bodyLocation, 
-                                                         bodyObject, 
-                                                         "place")
-    
-    table.insert(SnakeGame.gameObjects[playerName], {
-        uniqueIndex = bodyIndex,
-        cell = cellDescription,
-        type = "body"
-    })
-    
-    tes3mp.LogMessage(enumerations.log.INFO, 
-        "[SnakeGame] New body segment placed at (" .. head.x .. "," .. head.y .. ")")
-
-    -- setScale(pid, config.roomCell, bodyIndex, bodyObject.refId, config.bodyScale)
-
     -- Add the new head to the front of the snake
     table.insert(gameState.snake, 1, newHead)
     
@@ -782,7 +1005,7 @@ function UpdateGame(pid)
     for i = #gameState.snake, 3, -1 do
         gameState.segmentIndices[i] = gameState.segmentIndices[i-1]
     end
-    gameState.segmentIndices[2] = bodyIndex
+    gameState.segmentIndices[2] = bodySegmentIndex
     
     -- Handle food
     if ateFood then
@@ -790,78 +1013,121 @@ function UpdateGame(pid)
         tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] Ate food - growing snake")
         gameState.score = gameState.score + 1
         
-        -- tes3mp.PlaySpeech(pid, "Vo\\o\\m\\Idl_OM005.mp3")
         -- Play the basic food eating sound
-        logicHandler.RunConsoleCommandOnPlayer(pid, "PlaySound " .. config.eatFoodSound, false)
+        logicHandler.RunConsoleCommandOnPlayer(pid, "PlaySound " .. cfg.eatFoodSound, false)
         
         -- If there was a previous food and it has voice lines, play a random one
-        if gameState.foodRefId and config.foodVoiceLines[gameState.foodRefId] then
-            local voiceLines = config.foodVoiceLines[gameState.foodRefId]
+        if gameState.foodRefId and cfg.foodVoiceLines[gameState.foodRefId] then
+            local voiceLines = cfg.foodVoiceLines[gameState.foodRefId]
             local randomLine = voiceLines[math.random(1, #voiceLines)]
             tes3mp.LogMessage(enumerations.log.INFO, 
                 "[SnakeGame] Playing voice line: " .. randomLine .. " for food: " .. gameState.foodRefId)
             tes3mp.PlaySpeech(pid, randomLine)
-            -- tes3mp.PlaySpeech(pid, "Vo\\o\\m\\Idl_OM005.mp3")
         end
         
-        -- Remove old food
+        -- Move the eaten food back to staging area
         if gameState.foodIndex then
-            for i, obj in ipairs(SnakeGame.gameObjects[playerName]) do
+            local foodObj = nil
+            for _, obj in ipairs(SnakeGame.gameObjects[playerName]) do
                 if obj.uniqueIndex == gameState.foodIndex then
-                    logicHandler.DeleteObject(pid, obj.cell, obj.uniqueIndex, true)
-                    table.remove(SnakeGame.gameObjects[playerName], i)
+                    foodObj = obj
                     break
+                end
+            end
+            
+            if foodObj then
+                -- Move food to staging area
+                local stagingLocation = cfg.stagingLocation
+                
+                if LoadedCells[foodObj.cell].data.objectData[foodObj.uniqueIndex] then
+                    LoadedCells[foodObj.cell].data.objectData[foodObj.uniqueIndex].location = {
+                        posX = stagingLocation.x,
+                        posY = stagingLocation.y,
+                        posZ = stagingLocation.z,
+                        rotX = 0,
+                        rotY = 0,
+                        rotZ = 0
+                    }
+                    
+                    ResendPlace(pid, foodObj.uniqueIndex, foodObj.cell, true)
+                    
+                    -- Remove it from tracked objects
+                    for i, obj in ipairs(SnakeGame.gameObjects[playerName]) do
+                        if obj.uniqueIndex == foodObj.uniqueIndex then
+                            table.remove(SnakeGame.gameObjects[playerName], i)
+                            break
+                        end
+                    end
+                    
+                    tes3mp.LogMessage(enumerations.log.INFO, 
+                        "[SnakeGame] Moved food back to staging area")
                 end
             end
         end
         
         -- Place new food
         placeFood(pid)
-        local foodLocation = {
-            posX = config.roomPosition.x + (gameState.food.x * 16),
-            posY = config.roomPosition.y + (gameState.food.y * 16),
-            posZ = config.roomPosition.z + 0.5,
-            rotX = 0,
-            rotY = 0,
-            rotZ = 9
-        }
         
         -- Randomly select one of the food items
-        local randomFoodIndex = math.random(1, #config.objects.food)
-        local selectedFood = config.objects.food[randomFoodIndex]
+        local randomFoodIndex = math.random(1, #cfg.objects.food)
+        local selectedFood = cfg.objects.food[randomFoodIndex]
         
-        -- Special height adjustment for rotating_skooma
-        if selectedFood == "rotating_skooma" then
-            foodLocation.posZ = foodLocation.posZ + config.rotating_skooma_height_offset  -- 9 units higher
+        -- Find the matching pre-created food object
+        local preCreatedFoodObject = nil
+        for _, foodObj in ipairs(SnakeGame.preCreatedObjects.food) do
+            if foodObj.refId == selectedFood then
+                preCreatedFoodObject = foodObj
+                break
+            end
         end
         
-        local foodObject = {
-            refId = selectedFood,
-            count = 1,
-            charge = -1,
-            enchantmentCharge = -1,
-            soul = ""
-        }
-        
-        gameState.foodIndex = logicHandler.CreateObjectAtLocation(cellDescription, 
-                                                                 foodLocation, 
-                                                                 foodObject, 
-                                                                 "place")
-        
-        gameState.foodRefId = foodObject.refId
-        
-        table.insert(SnakeGame.gameObjects[playerName], {
-            uniqueIndex = gameState.foodIndex,
-            cell = cellDescription,
-            type = "food"
-        })
-        
-        setScale(pid, config.roomCell, gameState.foodIndex, foodObject.refId, config.foodScale)
-        
-        tes3mp.LogMessage(enumerations.log.INFO, 
-            "[SnakeGame] Food placed at (" .. gameState.food.x .. "," .. gameState.food.y .. ")")
+        if preCreatedFoodObject then
+            local foodLocation = {
+                posX = cfg.roomPosition.x + (gameState.food.x * 16),
+                posY = cfg.roomPosition.y + (gameState.food.y * 16),
+                posZ = cfg.roomPosition.z + 0.5,
+                rotX = 0,
+                rotY = 0,
+                rotZ = 9
+            }
+            
+            -- Special height adjustment for rotating_skooma
+            if selectedFood == "rotating_skooma" then
+                foodLocation.posZ = foodLocation.posZ + cfg.rotating_skooma_height_offset
+            end
+            
+            local uniqueIndex = preCreatedFoodObject.uniqueIndex
+            
+            if LoadedCells[cellDescription].data.objectData[uniqueIndex] then
+                LoadedCells[cellDescription].data.objectData[uniqueIndex].location = {
+                    posX = foodLocation.posX,
+                    posY = foodLocation.posY,
+                    posZ = foodLocation.posZ,
+                    rotX = foodLocation.rotX,
+                    rotY = foodLocation.rotY,
+                    rotZ = foodLocation.rotZ
+                }
+                
+                ResendPlace(pid, uniqueIndex, cellDescription, true)
+                gameState.foodIndex = uniqueIndex
+                gameState.foodRefId = selectedFood
+                
+                -- Track this dynamic object
+                table.insert(SnakeGame.gameObjects[playerName], {
+                    uniqueIndex = uniqueIndex,
+                    cell = cellDescription,
+                    type = "food"
+                })
+                
+                tes3mp.LogMessage(enumerations.log.INFO, 
+                    "[SnakeGame] Placed new food (" .. selectedFood .. ") at (" .. gameState.food.x .. "," .. gameState.food.y .. ")")
+            else
+                tes3mp.LogMessage(enumerations.log.ERROR, 
+                    "[SnakeGame] Pre-created food object not found in cell")
+            end
+        end
     else
-        -- Remove the tail - we're not growing
+        -- Not growing, so move the tail segment back to staging area
         local tail = gameState.snake[#gameState.snake]
         local tailIndex = gameState.segmentIndices[#gameState.snake]
         
@@ -869,15 +1135,37 @@ function UpdateGame(pid)
             "[SnakeGame] Removing tail at position (" .. tail.x .. "," .. tail.y .. ") with index " .. tostring(tailIndex))
         
         if tailIndex then
-            for i, obj in ipairs(SnakeGame.gameObjects[playerName]) do
-                if obj.uniqueIndex == tailIndex then
-                    -- DeleteObject(pid, obj.cell, obj.uniqueIndex, true)
-                    logicHandler.DeleteObject(pid, obj.cell, obj.uniqueIndex, true)
-                    table.remove(SnakeGame.gameObjects[playerName], i)
-                    tes3mp.LogMessage(enumerations.log.INFO, 
-                        "[SnakeGame] Cleared tail with index " .. tailIndex)
-                    break
+            -- Move body segment to staging area
+            local stagingLocation = cfg.stagingLocation
+            
+            if LoadedCells[cellDescription].data.objectData[tailIndex] then
+                LoadedCells[cellDescription].data.objectData[tailIndex].location = {
+                    posX = stagingLocation.x,
+                    posY = stagingLocation.y,
+                    posZ = stagingLocation.z,
+                    rotX = 0,
+                    rotY = 0,
+                    rotZ = 0
+                }
+                
+                ResendPlace(pid, tailIndex, cellDescription, true)
+                
+                -- Mark this body segment as no longer used
+                gameState.usedBodyIndices[tailIndex] = nil
+                
+                -- Remove it from tracked objects
+                for i, obj in ipairs(SnakeGame.gameObjects[playerName]) do
+                    if obj.uniqueIndex == tailIndex then
+                        table.remove(SnakeGame.gameObjects[playerName], i)
+                        break
+                    end
                 end
+                
+                tes3mp.LogMessage(enumerations.log.INFO, 
+                    "[SnakeGame] Moved tail back to staging area")
+            else
+                tes3mp.LogMessage(enumerations.log.WARN, 
+                    "[SnakeGame] Tail segment not found in cell")
             end
         else
             tes3mp.LogMessage(enumerations.log.WARN, 
@@ -891,7 +1179,7 @@ function UpdateGame(pid)
     
     -- Apply visual effects
     logicHandler.RunConsoleCommandOnObject(pid,
-                                          "PlaySound3DVP, \"corpDRAG\", 1.0, 1.0",
+                                          "PlaySound3DVP, \"" .. cfg.moveSound .. "\", 1.0, 1.0",
                                           cellDescription,
                                           gameState.headIndex,
                                           false)
@@ -899,17 +1187,6 @@ function UpdateGame(pid)
     tes3mp.LogMessage(enumerations.log.INFO, 
         "[SnakeGame] Final snake state: length=" .. #gameState.snake .. 
         ", head=(" .. newHead.x .. "," .. newHead.y .. ")")
-    
-    -- Debug info
-    tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] Segment indices:")
-    for i, idx in pairs(gameState.segmentIndices) do
-        if idx then
-            tes3mp.LogMessage(enumerations.log.INFO, 
-                "[SnakeGame] Segment " .. i .. " at position (" .. 
-                gameState.snake[i].x .. "," .. gameState.snake[i].y .. 
-                ") has index " .. tostring(idx))
-        end
-    end
     
     startGameTimer(pid)
 end
@@ -921,31 +1198,31 @@ local function commandHandler(pid, command, args)
     
     tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] Command received: " .. command .. " from player: " .. playerName)
     
-    if command == config.commands.start then
-        tes3mp.CustomMessageBox(pid, config.mainMenuId, "Snake Game", 
+    if command == cfg.commands.start then
+        tes3mp.CustomMessageBox(pid, cfg.mainMenuId, "Snake Game", 
                               color.Green .. "Start Game;" ..
                               color.Red .. "Quit")
         return true
         -- initGameState(pid)
-    elseif command == config.commands.stop then
+    elseif command == cfg.commands.stop then
         if SnakeGame.activePlayers[playerName] then
             tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] Stopping game for: " .. playerName)
             stopGame(pid)
         else
             tes3mp.MessageBox(pid, -1, "No active game to stop.")
         end
-    elseif command == config.commands.up or
-           command == config.commands.down or
-           command == config.commands.left or
-           command == config.commands.right then
+    elseif command == cfg.commands.up or
+           command == cfg.commands.down or
+           command == cfg.commands.left or
+           command == cfg.commands.right then
         if SnakeGame.activePlayers[playerName] and not SnakeGame.activePlayers[playerName].gameOver then
             local newDirection = command
             local currentDirection = SnakeGame.activePlayers[playerName].direction
             
-            if (newDirection == config.commands.up and currentDirection ~= config.commands.down) or
-               (newDirection == config.commands.down and currentDirection ~= config.commands.up) or
-               (newDirection == config.commands.left and currentDirection ~= config.commands.right) or
-               (newDirection == config.commands.right and currentDirection ~= config.commands.left) then
+            if (newDirection == cfg.commands.up and currentDirection ~= cfg.commands.down) or
+               (newDirection == cfg.commands.down and currentDirection ~= cfg.commands.up) or
+               (newDirection == cfg.commands.left and currentDirection ~= cfg.commands.right) or
+               (newDirection == cfg.commands.right and currentDirection ~= cfg.commands.left) then
                 SnakeGame.activePlayers[playerName].direction = newDirection
                 tes3mp.LogMessage(enumerations.log.INFO, 
                     "[SnakeGame] Direction changed to " .. newDirection .. " for " .. playerName)
@@ -958,19 +1235,322 @@ end
 
 -- Handle GUI actions
 local function onGUIAction(eventStatus, pid, idGui, data)
-    if idGui == config.gameOverId then
+    if idGui == cfg.gameOverId then
         if tonumber(data) == 0 then -- Play Again
             initGameState(pid)
         elseif tonumber(data) == 1 then -- Quit
             stopGame(pid)
         end
-    elseif idGui == config.mainMenuId then
+    elseif idGui == cfg.mainMenuId then
         if tonumber(data) == 0 then -- Start Game
             initGameState(pid)
         elseif tonumber(data) == 1 then -- Quit
             -- Nothing to do here
         end
     end
+end
+
+local function InitializeGameObjects()
+    local cellDescription = cfg.roomCell
+    local objectsCreated = {}
+    
+    -- Set up a staging area outside the game room for pre-created objects
+    local stagingLocation = cfg.stagingLocation
+    
+    tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] Initializing game objects in staging area")
+    
+    -- Create one of each food type
+    objectsCreated.food = {}
+    for _, foodRefId in ipairs(cfg.objects.food) do
+        local foodLocation = {
+            posX = stagingLocation.x,
+            posY = stagingLocation.y,
+            posZ = stagingLocation.z,
+            rotX = 0,
+            rotY = 0,
+            rotZ = 0
+        }
+        
+        -- Special height adjustment for rotating_skooma
+        if foodRefId == "rotating_skooma" then
+            foodLocation.posZ = foodLocation.posZ + cfg.rotating_skooma_height_offset
+        end
+        
+        local foodObject = {
+            refId = foodRefId,
+            count = 1,
+            charge = -1,
+            enchantmentCharge = -1,
+            soul = "",
+            location = foodLocation
+        }
+        
+        -- local foodIndex = logicHandler.CreateObjectAtLocation(cellDescription, 
+        --                                                      foodLocation, 
+        --                                                      foodObject, 
+        --                                                      "place")
+        local foodIndex = createObjects(cellDescription, {foodObject}, "place")
+        
+        -- Store the food object reference
+        table.insert(objectsCreated.food, {
+            refId = foodRefId,
+            uniqueIndex = foodIndex
+        })
+        
+        tes3mp.LogMessage(enumerations.log.INFO, 
+            "[SnakeGame] Placed food " .. foodRefId .. " at staging area with index " .. foodIndex)
+    end
+    
+    local centerX = math.floor(cfg.roomSize / 2)
+    local centerY = math.floor(cfg.roomSize / 2)
+    
+    -- Place head
+    local headLocation = {
+        posX = 120.0,
+        posY = 120.0,
+        posZ = cfg.roomPosition.z + 9.5,
+        rotX = math.rad(cfg.headRotations.right.rotX),
+        rotY = math.rad(cfg.headRotations.right.rotY),
+        rotZ = math.rad(cfg.headRotations.right.rotZ)
+    }
+
+    local headObject = {
+        refId = cfg.objects.snakeHead,
+        count = 1,
+        charge = -1,
+        enchantmentCharge = -1,
+        soul = "",
+        location = headLocation
+    }
+    
+    -- local headIndex = logicHandler.CreateObjectAtLocation(cellDescription, 
+    --                                                      headLocation, 
+    --                                                      headObject, 
+    --                                                      "place")
+    local headIndex = createObjects(cellDescription, {headObject}, "place")
+    
+    objectsCreated.head = {
+        refId = cfg.objects.snakeHead,
+        uniqueIndex = headIndex
+    }
+    
+    tes3mp.LogMessage(enumerations.log.INFO, 
+        "[SnakeGame] Placed snake head at staging area with index " .. headIndex)
+    
+    -- Create maximum number of potential snake body segments
+    -- Based on room size, maximum snake length would be roomSize * roomSize
+    local maxSegments = cfg.roomSize * cfg.roomSize
+    objectsCreated.body = {}
+    
+    for i = 1, maxSegments do
+        local segmentLocation = {
+            posX = stagingLocation.x,
+            posY = stagingLocation.y,
+            posZ = stagingLocation.z,
+            rotX = 0,
+            rotY = 0,
+            rotZ = 0
+        }
+        
+        local segmentObject = {
+            refId = cfg.objects.snakeBody,
+            count = 1,
+            charge = -1,
+            enchantmentCharge = -1,
+            soul = "",
+            location = segmentLocation
+        }
+        
+        -- local segmentIndex = logicHandler.CreateObjectAtLocation(cellDescription, 
+        --                                                         segmentLocation, 
+        --                                                         segmentObject, 
+        --                                                         "place")
+        local segmentIndex = createObjects(cellDescription, {segmentObject}, "place")
+        
+        table.insert(objectsCreated.body, {
+            refId = cfg.objects.snakeBody,
+            uniqueIndex = segmentIndex
+        })
+        
+        -- Log every 10 segments to avoid spam
+        if i % 10 == 0 or i == 1 or i == maxSegments then
+            tes3mp.LogMessage(enumerations.log.INFO, 
+                "[SnakeGame] Placed snake body segment " .. i .. "/" .. maxSegments .. 
+                " at staging area with index " .. segmentIndex)
+        end
+    end
+    
+    -- Create wall
+    local wallLocation = {
+        posX = cfg.wallPosition.x,
+        posY = cfg.wallPosition.y,
+        posZ = cfg.wallPosition.z,
+        rotX = degToRad(-180),
+        rotY = 0,
+        rotZ = 0
+    }
+    
+    local wallObject = {
+        refId = cfg.objects.wall,
+        count = 1,
+        charge = -1,
+        enchantmentCharge = -1,
+        soul = "",
+        location = wallLocation,
+        scale = cfg.wallScale
+    }
+    
+    -- local wallIndex = logicHandler.CreateObjectAtLocation(cellDescription, 
+    --                                                      wallLocation, 
+    --                                                      wallObject, 
+    --                                                      "place")
+    local wallIndex = createObjects(cellDescription, {wallObject}, "place")
+    
+    objectsCreated.wall = {
+        refId = cfg.objects.wall,
+        uniqueIndex = wallIndex
+    }
+    
+    tes3mp.LogMessage(enumerations.log.INFO, 
+        "[SnakeGame] Placed wall at staging area with index " .. wallIndex)
+    
+    -- Create floor
+    local floorLocation = {
+        posX = cfg.roomPosition.x,
+        posY = cfg.roomPosition.y, 
+        posZ = cfg.roomPosition.z - 23, -- Slightly below ground
+        rotX = 0,
+        rotY = 0,
+        rotZ = 0
+    }
+    
+    local floorObject = {
+        refId = cfg.objects.floor,
+        count = 1,
+        charge = -1,
+        enchantmentCharge = -1,
+        soul = "",
+        location = floorLocation,
+        scale = cfg.floorScale
+    }
+    
+    -- local floorIndex = logicHandler.CreateObjectAtLocation(cellDescription, 
+    --                                                       floorLocation, 
+    --                                                       floorObject, 
+    --                                                       "place")
+    local floorIndex = createObjects(cellDescription, {floorObject}, "place")
+    
+    objectsCreated.floor = {
+        refId = cfg.objects.floor,
+        uniqueIndex = floorIndex
+    }
+    
+    tes3mp.LogMessage(enumerations.log.INFO, 
+        "[SnakeGame] Placed floor at staging area with index " .. floorIndex)
+    
+    -- Create border markers in their final position
+    objectsCreated.borders = {}
+    local size = cfg.roomSize
+    local step = 1 -- step size in grid units
+    
+    tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] Creating game border in final position")
+    
+    for x = -1, size, step do
+        for y = -1, size, step do
+            -- Check if the current point is on the border
+            if x == -1 or x == size or y == -1 or y == size then
+                local borderLocation = {
+                    posX = cfg.roomPosition.x + (x * 16),
+                    posY = cfg.roomPosition.y + (y * 16),
+                    posZ = cfg.roomPosition.z + 8,
+                    rotX = 0,
+                    rotY = 0,
+                    rotZ = 0
+                }
+                
+                local borderObject = {
+                    refId = cfg.objects.border,
+                    count = 1,
+                    charge = -1,
+                    enchantmentCharge = -1,
+                    soul = "",
+                    location = borderLocation
+                }
+                
+                -- Set scale for border
+                if cfg.borderScale ~= 1 then
+                    local pid = 0 -- Use server PID for initialization
+                    borderObject.scale = cfg.borderScale
+                    -- setScale(pid, cellDescription, borderIndex, borderObject.refId, cfg.borderScale)
+                end
+                
+                -- local borderIndex = logicHandler.CreateObjectAtLocation(cellDescription, 
+                --                                                       borderLocation, 
+                --                                                       borderObject, 
+                --                                                       "place")
+                local borderIndex = createObjects(cellDescription, {borderObject}, "place")
+                
+                table.insert(objectsCreated.borders, {
+                    refId = cfg.objects.border,
+                    uniqueIndex = borderIndex,
+                    position = {x = x, y = y}
+                })
+            end
+        end
+    end
+    
+    -- Add the special custom marker for the large floor panel
+    local customMarkerLocation = {
+        posX = 120.0,
+        posY = 120.0,
+        posZ = -128.0,
+        rotX = degToRad(270.0),
+        rotY = degToRad(0.0),
+        rotZ = degToRad(90.0)
+    }
+    
+    local customBorderObject = {
+        refId = cfg.objects.border,
+        count = 1,
+        charge = -1,
+        enchantmentCharge = -1,
+        soul = "",
+        scale = 32,
+        location = customMarkerLocation
+        
+    }
+
+    
+    -- local customMarkerIndex = logicHandler.CreateObjectAtLocation(cellDescription, 
+    --                                              customMarkerLocation, 
+    --                                              customBorderObject, 
+    --                                              "place")
+    local customMarkerIndex = createObjects(cellDescription, {customBorderObject}, "place")
+    
+    -- Set large scale for this special border marker
+    local pid = 0 -- Use server PID for initialization
+    -- setScale(pid, cellDescription, customMarkerIndex, customBorderObject.refId, 32)
+    
+    table.insert(objectsCreated.borders, {
+        refId = cfg.objects.border,
+        uniqueIndex = customMarkerIndex,
+        position = {x = "custom", y = "custom"} -- Special identifier
+    })
+    
+    tes3mp.LogMessage(enumerations.log.INFO, 
+            "[SnakeGame] Created border with " .. #objectsCreated.borders .. " markers in final position")
+    
+    -- Save all the created object references to a global table or to disk
+    SnakeGame.preCreatedObjects = objectsCreated
+    
+    -- Save the data to a JSON file for persistence across server restarts
+    local jsonData = jsonInterface.save(SNAKEGAMEJSONPATH, SnakeGame.preCreatedObjects)
+    
+    tes3mp.LogMessage(enumerations.log.INFO, 
+        "[SnakeGame] Initialized and saved " .. (1 + 1 + 1 + 1 + #cfg.objects.food + maxSegments) .. 
+        " game objects to " .. SNAKEGAMEJSONPATH)
+    
+    return objectsCreated
 end
 
 local function OnServerPostInitHandler()
@@ -1006,6 +1586,25 @@ local function OnServerPostInitHandler()
     
     tes3mp.LogMessage(enumerations.log.INFO, 
         "[SnakeGame] Records Created.")
+    
+    -- Then initialize all the game objects
+    -- Check if we have saved objects from previous server runs
+    if jsonInterface.load(SNAKEGAMEJSONPATH) ~= nil then
+        SnakeGame.preCreatedObjects = jsonInterface.load(SNAKEGAMEJSONPATH)
+        tes3mp.LogMessage(enumerations.log.INFO, 
+            "[SnakeGame] Loaded " .. tableHelper.getCount(SnakeGame.preCreatedObjects.body) + 
+            tableHelper.getCount(SnakeGame.preCreatedObjects.food) + 3 .. 
+            " pre-created objects from " .. SNAKEGAMEJSONPATH)
+    else
+        -- If not, create all objects and save them
+        cfg.initializing = true
+        tes3mp.LogMessage(enumerations.log.INFO, 
+            "[SnakeGame] Initializing value before: " .. tostring(cfg.initializing))
+        InitializeGameObjects()
+        cfg.initializing = false
+        tes3mp.LogMessage(enumerations.log.INFO, 
+            "[SnakeGame] Initializing value after: " .. tostring(cfg.initializing))
+    end
 
 end
 
@@ -1023,9 +1622,9 @@ customEventHooks.registerHandler("OnGUIAction", onGUIAction)
 -- end)
 
 -- Register commands
-customCommandHooks.registerCommand(config.commands.start, commandHandler)
-customCommandHooks.registerCommand(config.commands.stop, commandHandler)
-customCommandHooks.registerCommand(config.commands.up, commandHandler)
-customCommandHooks.registerCommand(config.commands.down, commandHandler)
-customCommandHooks.registerCommand(config.commands.left, commandHandler)
-customCommandHooks.registerCommand(config.commands.right, commandHandler)
+customCommandHooks.registerCommand(cfg.commands.start, commandHandler)
+customCommandHooks.registerCommand(cfg.commands.stop, commandHandler)
+customCommandHooks.registerCommand(cfg.commands.up, commandHandler)
+customCommandHooks.registerCommand(cfg.commands.down, commandHandler)
+customCommandHooks.registerCommand(cfg.commands.left, commandHandler)
+customCommandHooks.registerCommand(cfg.commands.right, commandHandler)
