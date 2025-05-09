@@ -1,4 +1,5 @@
 -- Snake Game for TES3MP
+-- made by skoomabreath
 -- Main module
 
 -- Load all the components
