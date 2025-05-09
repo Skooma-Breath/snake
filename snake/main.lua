@@ -11,7 +11,7 @@ SnakeGame.handlersAndValidators = require("custom.snake.handlersAndValidators")
 SnakeGame.serverPostInit = require("custom.snake.serverPostInit")
 SnakeGame.leaderboard = require("custom.snake.leaderboard")
 
-SnakeGame.logging_enabled = false
+SnakeGame.logging_enabled = true
 
 -- Update game logic
 function UpdateGame(pid)
@@ -22,6 +22,105 @@ function UpdateGame(pid)
     if not gameState or gameState.gameOver then
         tes3mp.LogMessage(enumerations.log.ERROR, "[SnakeGame] No game state or game over for " .. playerName)
         return
+    end
+
+    -- Initialize segment indices if needed
+    gameState.segmentIndices = gameState.segmentIndices or {}
+
+    -- Initialize snake array if needed
+    gameState.snake = gameState.snake or {}
+
+    if #gameState.snake == 0 then
+        tes3mp.LogMessage(enumerations.log.ERROR, "[SnakeGame] No snake data, cannot update game")
+        return
+    end
+
+    -- Check if segment indices are missing but should exist
+    -- This handles first moves or if somehow indices become desynchronized
+    if #gameState.snake > 1 and next(gameState.segmentIndices) == nil then
+        tes3mp.LogMessage(enumerations.log.INFO,
+            "[SnakeGame] Segment indices missing, initializing for initial snake length " .. #gameState.snake)
+
+        -- For the initial state, we need to set up indices for all the body segments
+        -- but at this point they probably don't exist in gameObjects yet
+        -- So we'll add body segments one by one
+        for i = 2, #gameState.snake do
+            -- Find an unused body segment from pre-created ones
+            local bodySegmentIndex = nil
+            for _, bodyObj in ipairs(SnakeGame.gamestate.SnakeGame.preCreatedObjects.body) do
+                local uniqueIndex = bodyObj.uniqueIndex
+
+                -- Check if this segment is not already in use
+                local isUsed = false
+                for pos, index in pairs(gameState.segmentIndices) do
+                    if index == uniqueIndex then
+                        isUsed = true
+                        break
+                    end
+                end
+
+                if not isUsed then
+                    bodySegmentIndex = uniqueIndex
+                    gameState.segmentIndices[i] = bodySegmentIndex
+
+                    -- Place the body segment at its corresponding snake position
+                    local bodyPos = gameState.snake[i]
+                    local bodyLocation = {
+                        posX = SnakeGame.cfg.roomPosition.x + (bodyPos.x * 16),
+                        posY = SnakeGame.cfg.roomPosition.y + (bodyPos.y * 16),
+                        posZ = SnakeGame.cfg.roomPosition.z + 9.3,
+                        rotX = 0,
+                        rotY = 0,
+                        rotZ = 0
+                    }
+
+                    if LoadedCells[cellDescription].data.objectData[bodySegmentIndex] then
+                        LoadedCells[cellDescription].data.objectData[bodySegmentIndex].location = {
+                            posX = bodyLocation.posX,
+                            posY = bodyLocation.posY,
+                            posZ = bodyLocation.posZ,
+                            rotX = bodyLocation.rotX,
+                            rotY = bodyLocation.rotY,
+                            rotZ = bodyLocation.rotZ
+                        }
+
+                        SnakeGame.helpers.ResendPlace(pid, bodySegmentIndex, cellDescription, true)
+
+                        -- Add to tracked objects
+                        table.insert(SnakeGame.gamestate.SnakeGame.gameObjects[playerName], {
+                            uniqueIndex = bodySegmentIndex,
+                            cell = cellDescription,
+                            type = "body"
+                        })
+
+                        if SnakeGame.logging_enabled then
+                            tes3mp.LogMessage(enumerations.log.INFO,
+                                "[SnakeGame] Initialized segment index " .. i .. " to " .. bodySegmentIndex ..
+                                " at position (" .. bodyPos.x .. "," .. bodyPos.y .. ")")
+                        end
+
+                        break
+                    else
+                        tes3mp.LogMessage(enumerations.log.ERROR,
+                            "[SnakeGame] Body segment " .. bodySegmentIndex .. " not found in cell during initialization")
+                    end
+                end
+            end
+
+            if not gameState.segmentIndices[i] then
+                tes3mp.LogMessage(enumerations.log.ERROR,
+                    "[SnakeGame] Failed to initialize segment index " .. i)
+            end
+        end
+
+        -- Debug output of initialized segment indices
+        if SnakeGame.logging_enabled then
+            local segmentString = "Initialized segment indices: "
+            for i, idx in pairs(gameState.segmentIndices) do
+                segmentString = segmentString .. i .. "=" .. idx .. ", "
+            end
+            tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] " .. segmentString)
+        end
     end
 
     local head = gameState.snake[1]
@@ -104,22 +203,85 @@ function UpdateGame(pid)
         return
     end
 
-    -- Find an unused body segment from the pre-created ones
-    local bodySegmentIndex = nil
+    -- Get a body segment for the position behind the head (the old head position)
+    local bodySegmentIndex
 
-    -- Look for the next available body segment
-    for i, bodyObj in ipairs(SnakeGame.gamestate.SnakeGame.preCreatedObjects.body) do
-        if not gameState.usedBodyIndices[bodyObj.uniqueIndex] then
-            bodySegmentIndex = bodyObj.uniqueIndex
-            gameState.usedBodyIndices[bodySegmentIndex] = true
-            break
+    -- If not growing and snake is longer than 1, use the tail segment
+    if not ateFood and #gameState.snake > 1 then
+        local tailPos = #gameState.snake
+        if gameState.segmentIndices[tailPos] then
+            bodySegmentIndex = gameState.segmentIndices[tailPos]
+
+            if SnakeGame.logging_enabled then
+                tes3mp.LogMessage(enumerations.log.INFO,
+                    "[SnakeGame] Reusing tail segment " .. bodySegmentIndex .. " at position " .. tailPos)
+            end
+
+            -- Remove tail from snake since we're moving it
+            table.remove(gameState.snake)
+
+            -- Remove the index from the segment indices map
+            gameState.segmentIndices[tailPos] = nil
+        else
+            tes3mp.LogMessage(enumerations.log.WARN,
+                "[SnakeGame] No tail segment index found at position " .. tailPos .. ", using new segment")
         end
     end
 
+    -- If we need a new segment (either growing or couldn't find tail segment)
     if not bodySegmentIndex then
-        tes3mp.LogMessage(enumerations.log.ERROR,
-            "[SnakeGame] No available body segments found, cannot update game")
-        return
+        -- Find an unused body segment from pre-created ones
+        for i, bodyObj in ipairs(SnakeGame.gamestate.SnakeGame.preCreatedObjects.body) do
+            local uniqueIndex = bodyObj.uniqueIndex
+
+            -- Check if this segment is not already used in the snake
+            local isUsed = false
+            for _, index in pairs(gameState.segmentIndices) do
+                if index == uniqueIndex then
+                    isUsed = true
+                    break
+                end
+            end
+
+            if not isUsed then
+                bodySegmentIndex = uniqueIndex
+
+                if SnakeGame.logging_enabled then
+                    tes3mp.LogMessage(enumerations.log.INFO,
+                        "[SnakeGame] Using new body segment " .. bodySegmentIndex)
+                end
+
+                -- Track in game objects if not already there
+                local isTracked = false
+                for _, obj in ipairs(SnakeGame.gamestate.SnakeGame.gameObjects[playerName]) do
+                    if obj.uniqueIndex == uniqueIndex then
+                        isTracked = true
+                        break
+                    end
+                end
+
+                if not isTracked then
+                    table.insert(SnakeGame.gamestate.SnakeGame.gameObjects[playerName], {
+                        uniqueIndex = bodySegmentIndex,
+                        cell = cellDescription,
+                        type = "body"
+                    })
+
+                    if SnakeGame.logging_enabled then
+                        tes3mp.LogMessage(enumerations.log.INFO,
+                            "[SnakeGame] Added new body segment " .. bodySegmentIndex .. " to tracked objects")
+                    end
+                end
+
+                break
+            end
+        end
+
+        if not bodySegmentIndex then
+            tes3mp.LogMessage(enumerations.log.ERROR,
+                "[SnakeGame] No available body segments found, cannot update game")
+            return
+        end
     end
 
     -- Place body segment at old head position
@@ -144,38 +306,44 @@ function UpdateGame(pid)
 
         SnakeGame.helpers.ResendPlace(pid, bodySegmentIndex, cellDescription, true)
 
-        -- Add this segment to the tracked objects
-        table.insert(SnakeGame.gamestate.SnakeGame.gameObjects[playerName], {
-            uniqueIndex = bodySegmentIndex,
-            cell = cellDescription,
-            type = "body"
-        })
-
         if SnakeGame.logging_enabled then
             tes3mp.LogMessage(enumerations.log.INFO,
                 "[SnakeGame] Placed body segment at old head position (" .. head.x .. "," .. head.y .. ")")
         end
     else
         tes3mp.LogMessage(enumerations.log.ERROR,
-            "[SnakeGame] Body segment not found, cannot update game")
+            "[SnakeGame] Body segment " .. bodySegmentIndex .. " not found in cell")
         return
     end
 
     -- Add the new head to the front of the snake
     table.insert(gameState.snake, 1, newHead)
 
-    -- Update segment indices
-    gameState.segmentIndices = gameState.segmentIndices or {}
-
-    -- Shift all indices and add new body segment
+    -- Update segment indices - shift all indices and add the new body segment behind the head
     for i = #gameState.snake, 3, -1 do
         gameState.segmentIndices[i] = gameState.segmentIndices[i - 1]
     end
     gameState.segmentIndices[2] = bodySegmentIndex
 
+    -- Debug output of segment indices
+    if SnakeGame.logging_enabled then
+        local segmentString = "Segment indices: "
+        for i, idx in pairs(gameState.segmentIndices) do
+            segmentString = segmentString .. i .. "=" .. idx .. ", "
+        end
+        tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] " .. segmentString)
+
+        -- Also log the current snake array
+        local snakeString = "Snake array: "
+        for i, pos in ipairs(gameState.snake) do
+            snakeString = snakeString .. i .. "=(" .. pos.x .. "," .. pos.y .. "), "
+        end
+        tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] " .. snakeString)
+    end
+
     -- Handle food
     if ateFood then
-        -- Keep the tail - we're growing
+        -- We're growing
         if SnakeGame.logging_enabled then
             tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] Ate food - growing snake")
         end
@@ -184,7 +352,7 @@ function UpdateGame(pid)
         -- Play the basic food eating sound
         logicHandler.RunConsoleCommandOnPlayer(pid, "PlaySound " .. SnakeGame.cfg.eatFoodSound, false)
 
-        -- play voiceline
+        -- Play voiceline
         if gameState.foodRefId and SnakeGame.cfg.foodVoiceLines[gameState.foodRefId] then
             local voiceLines = SnakeGame.cfg.foodVoiceLines[gameState.foodRefId]
             local randomLine = voiceLines[math.random(1, #voiceLines)]
@@ -301,79 +469,24 @@ function UpdateGame(pid)
                     "[SnakeGame] Pre-created food object not found in cell")
             end
         end
-    else
-        -- Not growing, so move the tail segment back to staging area
-        local tail = gameState.snake[#gameState.snake]
-        local tailIndex = gameState.segmentIndices[#gameState.snake]
-
-        if SnakeGame.logging_enabled then
-            tes3mp.LogMessage(enumerations.log.INFO,
-                "[SnakeGame] Removing tail at position (" ..
-                tail.x .. "," .. tail.y .. ") with index " .. tostring(tailIndex))
-        end
-
-        if tailIndex then
-            -- Move body segment to staging area
-            local stagingLocation = SnakeGame.cfg.stagingLocation
-
-            if LoadedCells[cellDescription].data.objectData[tailIndex] then
-                LoadedCells[cellDescription].data.objectData[tailIndex].location = {
-                    posX = stagingLocation.x,
-                    posY = stagingLocation.y,
-                    posZ = stagingLocation.z,
-                    rotX = 0,
-                    rotY = 0,
-                    rotZ = 0
-                }
-
-                SnakeGame.helpers.ResendPlace(pid, tailIndex, cellDescription, true)
-
-                -- Mark this body segment as no longer used
-                gameState.usedBodyIndices[tailIndex] = nil
-
-                -- Remove it from tracked objects
-                for i, obj in ipairs(SnakeGame.gamestate.SnakeGame.gameObjects[playerName]) do
-                    if obj.uniqueIndex == tailIndex then
-                        table.remove(SnakeGame.gamestate.SnakeGame.gameObjects[playerName], i)
-                        break
-                    end
-                end
-
-                if SnakeGame.logging_enabled then
-                    tes3mp.LogMessage(enumerations.log.INFO,
-                        "[SnakeGame] Moved tail back to staging area")
-                end
-            else
-                tes3mp.LogMessage(enumerations.log.WARN,
-                    "[SnakeGame] Tail segment not found in cell")
-            end
-        else
-            tes3mp.LogMessage(enumerations.log.WARN,
-                "[SnakeGame] No tail index found for position (" .. tail.x .. "," .. tail.y .. ")")
-        end
-
-        -- Remove the tail from the snake and segment indices
-        table.remove(gameState.snake)
-        gameState.segmentIndices[#gameState.snake + 1] = nil
     end
 
     -- Apply move sound
-    table.insert(Players[pid].consoleCommandsQueued, "PlaySound3DVP, \"" .. SnakeGame.cfg.moveSound .. "\", 1.0, 1.0")
+    local corpSound = "PlaySound3DVP, \"" .. SnakeGame.cfg.moveSound .. "\", 1.0, 1.0"
+    for otherPid, player in pairs(Players) do
+        table.insert(Players[otherPid].consoleCommandsQueued, corpSound)
+        -- tes3mp.LogAppend(enumerations.log.INFO, "------------------------- " .. "consoleCommand: " .. tostring(consoleCommand) .. "was queue'd for pid:  " .. tostring(otherPid))
+    end
+    table.insert(Players[pid].consoleCommandsQueued, corpSound)
     tes3mp.ClearObjectList()
     tes3mp.SetObjectListPid(pid)
     tes3mp.SetObjectListCell(cellDescription)
-    tes3mp.SetObjectListConsoleCommand("PlaySound3DVP, \"" .. SnakeGame.cfg.moveSound .. "\", 1.0, 1.0")
+    tes3mp.SetObjectListConsoleCommand(corpSound)
     local splitIndex = gameState.headIndex:split("-")
     tes3mp.SetObjectRefNum(splitIndex[1])
     tes3mp.SetObjectMpNum(splitIndex[2])
     tes3mp.AddObject()
     tes3mp.SendConsoleCommand(true, false)
-
-    -- logicHandler.RunConsoleCommandOnObject(pid,
-    --     "PlaySound3DVP, \"" .. SnakeGame.cfg.moveSound .. "\", 1.0, 1.0",
-    --     cellDescription,
-    --     gameState.headIndex,
-    --     false)
 
     if SnakeGame.logging_enabled then
         tes3mp.LogMessage(enumerations.log.INFO,
