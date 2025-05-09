@@ -11,7 +11,7 @@ SnakeGame.handlersAndValidators = require("custom.snake.handlersAndValidators")
 SnakeGame.serverPostInit = require("custom.snake.serverPostInit")
 SnakeGame.leaderboard = require("custom.snake.leaderboard")
 
-SnakeGame.logging_enabled = true
+SnakeGame.logging_enabled = false
 
 -- Update game logic
 function UpdateGame(pid)
