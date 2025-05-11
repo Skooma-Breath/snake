@@ -55,11 +55,8 @@ function handlersAndValidators.onGUIAction(eventStatus, pid, idGui, data)
             SnakeGame.gamestate.initGameState(pid)
         elseif tonumber(data) == 1 then -- What's going on here?
             tes3mp.CustomMessageBox(pid, SnakeGame.cfg.ask_yagrum_id, SnakeGame.cfg.yagrums_explanation, "close;")
-            table.insert(Players[pid].consoleCommandsQueued,
-                'say, "' .. SnakeGame.cfg.npcVoiceLines.yagrum[3] .. '", "yagrums engineer talk..."')
-            logicHandler.RunConsoleCommandOnObject(pid,
-                'say, "' .. SnakeGame.cfg.npcVoiceLines.yagrum[3] .. '", "yagrums engineer talk..."', tes3mp.GetCell(pid),
-                SnakeGame.preCreatedObjects.yagrum.uniqueIndex, true)
+            local sound = 'say, "' .. SnakeGame.cfg.npcVoiceLines.yagrum[3] .. '", "yagrums engineer talk..."'
+            SnakeGame.helpers.playSoundInCell(sound, SnakeGame.preCreatedObjects.yagrum.uniqueIndex, tes3mp.GetCell(pid))
         elseif tonumber(data) == 1 then -- Quit
             -- Nothing to do here
         end
@@ -84,16 +81,16 @@ function handlersAndValidators.OnObjectActivateHandler(eventStatus, pid, cellDes
 
             if tableHelper.isEmpty(SnakeGame.gamestate.SnakeGame.activePlayers) then
                 tes3mp.CustomMessageBox(pid, SnakeGame.cfg.mainMenuId,
-                    "It all started when I asked Caius if he was interested in restoring some vintage Dwemer technology.\n\n Once he saw how it worked, he retired from the blades and hasn't left since.",
+                    "It all started when I asked Caius if he was interested in restoring some vintage Dwemer technology.\n\n Once he saw how it worked, he retired from the blades and hasn't left since.\n\n\n" ..
+                    color.Coral ..
+                    "To control the snake use keys 1-4.\nStartng at one the controls are:\nleft, down, up, right.\n It' recommended to change your 1-4 quickKey binds to your arrow keys.\n Unless you have a gamePad then binidng the controls to the Dpad is ideal.",
                     "Start Game;" ..
                     "What's going on here?;" ..
                     "Close;")
 
-                table.insert(Players[pid].consoleCommandsQueued,
-                    'say, "vo\\Misc\\Yagrum_1.mp3", "A visitor? What brings you to visit Yagrum Bagarn, master crafter and last living dwarf?"')
-                logicHandler.RunConsoleCommandOnObject(pid,
-                    'say, "vo\\Misc\\Yagrum_1.mp3", "A visitor? What brings you to visit Yagrum Bagarn, master crafter and last living dwarf?"',
-                    cellDescription, index, true)
+                local sound =
+                'say, "vo\\Misc\\Yagrum_1.mp3", "A visitor? What brings you to visit Yagrum Bagarn, master crafter and last living dwarf?"'
+                SnakeGame.helpers.playSoundInCell(sound, index, cellDescription)
             else
                 tes3mp.MessageBox(pid, -1, "Patience fetcher.")
                 return customEventHooks.makeEventStatus(false, false)
@@ -104,10 +101,8 @@ function handlersAndValidators.OnObjectActivateHandler(eventStatus, pid, cellDes
 
             tes3mp.CustomMessageBox(pid, SnakeGame.cfg.leaderboardId_1,
                 "Don't tell the other blades members I spend all my time here.", "Leaderboard;close;")
-            table.insert(Players[pid].consoleCommandsQueued,
-                'say, "vo\\i\\m\\bIdl_IM022.mp3", "Without me, it all falls to pieces."')
-            logicHandler.RunConsoleCommandOnObject(pid,
-                'say, "vo\\i\\m\\bIdl_IM022.mp3", "Without me, it all falls to pieces."', cellDescription, index, true)
+            local sound = 'say, "vo\\i\\m\\bIdl_IM022.mp3", "Without me, it all falls to pieces."'
+            SnakeGame.helpers.playSoundInCell(sound, index, cellDescription)
             return customEventHooks.makeEventStatus(false, false)
         elseif object.refId == "sg_leaderboard_book" then
             return customEventHooks.makeEventStatus(false, false)
@@ -211,6 +206,34 @@ function handlersAndValidators.OnObjectDeleteHandler(eventStatus, pid, cellDescr
             return customEventHooks.makeEventStatus(false, false)
         end
     end
+end
+
+-- respawn in balmora temple instead of in the lava you died in...
+function handlersAndValidators.OnDeathTimeExpirationValidator(eventStatus, pid)
+    --TODO resapwn player at balmora temple
+    tes3mp.LogAppend(enumerations.log.INFO, "[SnakeGame] OnDeathTimeExpirationValidator called")
+    local Respawn = {
+        cellDescription = "Balmora, Temple",
+        position = { 4700.5673828125, 3874.7416992188, 14758.990234375 },
+        rotation = { 0.25314688682556, 1.570611000061 }
+    }
+    tes3mp.SetCell(pid, Respawn.cellDescription)
+    tes3mp.SendCell(pid)
+    tes3mp.SetPos(pid, Respawn.position[1], Respawn.position[2], Respawn.position[3])
+    tes3mp.SetRot(pid, Respawn.rotation[1], Respawn.rotation[2])
+    tes3mp.SendPos(pid)
+
+    -- Ensure that dying as a werewolf turns you back into your normal form
+    if Players[pid].data.shapeshift.isWerewolf == true then
+        Players[pid]:SetWerewolfState(false)
+    end
+
+    -- Ensure that we unequip deadly items when applicable, to prevent an
+    -- infinite death loop
+    contentFixer.UnequipDeadlyItems(pid)
+
+    tes3mp.Resurrect(pid, 0)
+    return customEventHooks.makeEventStatus(false, false)
 end
 
 return handlersAndValidators
