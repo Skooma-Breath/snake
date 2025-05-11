@@ -22,7 +22,7 @@ SnakeGame.handlersAndValidators = require("custom.snake.handlersAndValidators")
 SnakeGame.serverPostInit = require("custom.snake.serverPostInit")
 SnakeGame.leaderboard = require("custom.snake.leaderboard")
 
-SnakeGame.logging_enabled = true
+SnakeGame.logging_enabled = false
 
 -- Update game logic
 function UpdateGame(pid)
@@ -517,7 +517,6 @@ customEventHooks.registerHandler("OnPlayerCellChange", SnakeGame.handlersAndVali
 customEventHooks.registerHandler("OnObjectDelete", SnakeGame.handlersAndValidators.OnObjectDeleteHandler)
 
 --validators
--- customEventHooks.registerValidator("OnPlayerDeath", SnakeGame.handlersAndValidators.OnPlayerDeathValidator)
 customEventHooks.registerValidator("OnDeathTimeExpiration", SnakeGame.handlersAndValidators.OnDeathTimeExpirationValidator)
 customEventHooks.registerValidator("OnPlayerItemUse", SnakeGame.handlersAndValidators.OnPlayerItemUseValidator)
 customEventHooks.registerValidator("OnPlayerInventory", SnakeGame.handlersAndValidators.OnPlayerInventoryValidator)
