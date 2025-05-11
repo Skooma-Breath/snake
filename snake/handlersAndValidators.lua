@@ -211,29 +211,32 @@ end
 -- respawn in balmora temple instead of in the lava you died in...
 function handlersAndValidators.OnDeathTimeExpirationValidator(eventStatus, pid)
     --TODO resapwn player at balmora temple
-    tes3mp.LogAppend(enumerations.log.INFO, "[SnakeGame] OnDeathTimeExpirationValidator called")
-    local Respawn = {
-        cellDescription = "Balmora, Temple",
-        position = { 4700.5673828125, 3874.7416992188, 14758.990234375 },
-        rotation = { 0.25314688682556, 1.570611000061 }
-    }
-    tes3mp.SetCell(pid, Respawn.cellDescription)
-    tes3mp.SendCell(pid)
-    tes3mp.SetPos(pid, Respawn.position[1], Respawn.position[2], Respawn.position[3])
-    tes3mp.SetRot(pid, Respawn.rotation[1], Respawn.rotation[2])
-    tes3mp.SendPos(pid)
+    local cell = tes3mp.GetCell(pid)
+    if cell == SnakeGame.cfg.roomCell then
+        tes3mp.LogAppend(enumerations.log.INFO, "[SnakeGame] OnDeathTimeExpirationValidator called")
+        local Respawn = {
+            cellDescription = "Balmora, Temple",
+            position = { 4700.5673828125, 3874.7416992188, 14758.990234375 },
+            rotation = { 0.25314688682556, 1.570611000061 }
+        }
+        tes3mp.SetCell(pid, Respawn.cellDescription)
+        tes3mp.SendCell(pid)
+        tes3mp.SetPos(pid, Respawn.position[1], Respawn.position[2], Respawn.position[3])
+        tes3mp.SetRot(pid, Respawn.rotation[1], Respawn.rotation[2])
+        tes3mp.SendPos(pid)
 
-    -- Ensure that dying as a werewolf turns you back into your normal form
-    if Players[pid].data.shapeshift.isWerewolf == true then
-        Players[pid]:SetWerewolfState(false)
+        -- Ensure that dying as a werewolf turns you back into your normal form
+        if Players[pid].data.shapeshift.isWerewolf == true then
+            Players[pid]:SetWerewolfState(false)
+        end
+
+        -- Ensure that we unequip deadly items when applicable, to prevent an
+        -- infinite death loop
+        contentFixer.UnequipDeadlyItems(pid)
+
+        tes3mp.Resurrect(pid, 0)
+        return customEventHooks.makeEventStatus(false, false)
     end
-
-    -- Ensure that we unequip deadly items when applicable, to prevent an
-    -- infinite death loop
-    contentFixer.UnequipDeadlyItems(pid)
-
-    tes3mp.Resurrect(pid, 0)
-    return customEventHooks.makeEventStatus(false, false)
 end
 
 return handlersAndValidators
