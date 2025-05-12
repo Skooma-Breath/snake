@@ -9,7 +9,7 @@ This mod adds a custom location near Balmora, eastern guard tower that takes you
 
 ## Installation
 
-1. **Download** the zip from here or [Nexus Mods]([https://www.nexusmods.com/](https://www.nexusmods.com/morrowind/mods/56555?tab=description)).
+1. **Download** the zip from here or [Nexus Mods](https://www.nexusmods.com/morrowind/mods/56555?tab=description).
 2. **Locate** your TES3MP server folder (usually found at `tes3mp/server/`).
 3. **Copy** the `snake` folder into `tes3mp/server/scripts/custom/`.
 4. **Edit** the `customscripts.lua` file located in `tes3mp/server/scripts/`.
