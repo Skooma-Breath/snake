@@ -1,3 +1,75 @@
-play snake on you tes3mp server.
+# Snake Mod for TES3MP  
+[https://github.com/Skooma-Breath/snake/tree/main](https://github.com/Skooma-Breath/snake/tree/main)
 
-adds a custom location to balmora that will take you to the game room.
+## Description  
+This mod adds a Snake game to your TES3MP server, allowing players to enjoy a classic arcade experience within the world of Morrowind.
+
+## Installation
+
+1. **Download** the mod files from [Nexus Mods](https://www.nexusmods.com/).
+2. **Locate** your TES3MP server folder (usually found at `tes3mp/server/`).
+3. **Copy** the `snake` folder into `tes3mp/server/scripts/custom/`.
+4. **Edit** the `customscripts.lua` file located in `tes3mp/server/scripts/`.
+5. **Add** the following line to the file:
+   ```lua
+   require("custom.snake.main")
+   ```
+6. **Save** the changes to `customscripts.lua`.
+
+## Usage
+
+- In `server/scripts/custom/snake/config.lua`, you can modify the travel speed of the snake (in seconds) by changing the `updateInterval` value.
+- In `server/data/custom/`, on first launch the server will:
+  - Generate all the custom objects.
+  - Create backups of cell files with custom placed objects.
+    - Affected cells: `-3, -2.json` and `Abandoned Skooma Distillery.json` (backups prefixed with `snake_backup_`).
+- File breakdown:
+  - `snakeGameCellData.json`: Tracks uniqueIndexes for game objects and some metadata.
+  - `snakeLeaderboard.json`: Stores the top 25 scores (accessed via Headless Caius in the game room).
+
+## Requirements
+
+- TES3MP server (version 0.8.1)
+- Morrowind
+
+## Compatibility
+
+This mod should be compatible with most other TES3MP scripts and any mods that don't add custom buildings near Balmora's eastern guard tower.
+
+## Uninstallation
+
+1. Delete the `snake` folder from `tes3mp/server/scripts/custom/`.
+2. Remove this line from `customscripts.lua`:
+   ```lua
+   require("custom.snake.main")
+   ```
+
+## Credits
+
+- **skoomabreath** – Mod creator  
+- **TES3MP developers**  
+- **Bethesda Softworks** – For Morrowind  
+
+## License
+
+**GNU GENERAL PUBLIC LICENSE**  
+Version 3, 29 June 2007
+
+Copyright (C) 2007 Free Software Foundation, Inc.  
+Everyone is permitted to copy and distribute verbatim copies of this license document, but changing it is not allowed.  
+
+*Full text available at:*  
+[https://www.gnu.org/licenses/gpl-3.0.en.html](https://www.gnu.org/licenses/gpl-3.0.en.html)
+
+## Support
+
+For issues or questions:
+- Post in the **content discussion** channel on the [TES3MP Discord](https://discord.gg/ypSsVdr3xe)
+- Leave a comment on Nexus
+- Use [GitHub Issues](https://github.com/Skooma-Breath/snake/issues)
+
+## Version History
+
+- **1.0** – Initial release
+
+---
