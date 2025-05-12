@@ -49,8 +49,9 @@ This mod should be compatible with most other TES3MP scripts and any mods that d
 
 ## Credits
 
-- **skoomabreath** – Mod creator  
-- **TES3MP developers**  
+- **skoomabreath** – Mod creator
+- **OPENMW developers**
+- **TES3MP developers**
 - **Bethesda Softworks** – For Morrowind  
 
 ## License
