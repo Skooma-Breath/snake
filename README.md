@@ -1,12 +1,11 @@
 # Snake Mod for TES3MP  
-[https://github.com/Skooma-Breath/snake/tree/main](https://github.com/Skooma-Breath/snake/tree/main)
 
 ## Description  
 This mod adds a Snake game to your TES3MP server, allowing players to enjoy a classic arcade experience within the world of Morrowind.
 
 ## Installation
 
-1. **Download** the mod files from [Nexus Mods](https://www.nexusmods.com/).
+1. **Download** the zip from here or [Nexus Mods]([https://www.nexusmods.com/](https://www.nexusmods.com/morrowind/mods/56555?tab=description)).
 2. **Locate** your TES3MP server folder (usually found at `tes3mp/server/`).
 3. **Copy** the `snake` folder into `tes3mp/server/scripts/custom/`.
 4. **Edit** the `customscripts.lua` file located in `tes3mp/server/scripts/`.
