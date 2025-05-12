@@ -210,8 +210,11 @@ end
 
 -- respawn in balmora temple instead of in the lava you died in...
 function handlersAndValidators.OnDeathTimeExpirationValidator(eventStatus, pid)
-    --TODO resapwn player at balmora temple
     local cell = tes3mp.GetCell(pid)
+    local playerName = string.lower(Players[pid].accountName)
+
+    if SnakeGame.gamestate.SnakeGame.activePlayers[playerName] then SnakeGame.gameLogic.stopGame(pid) end
+
     if cell == SnakeGame.cfg.roomCell then
         tes3mp.LogAppend(enumerations.log.INFO, "[SnakeGame] OnDeathTimeExpirationValidator called")
         local Respawn = {
