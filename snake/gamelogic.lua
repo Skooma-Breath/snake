@@ -90,6 +90,8 @@ end
 function gamelogic.stopGame(pid)
     local playerName = string.lower(Players[pid].accountName)
 
+    if not SnakeGame.gamestate.SnakeGame.activePlayers[playerName] then return end
+
     if SnakeGame.gamestate.SnakeGame.timers[playerName] then
         tes3mp.StopTimer(SnakeGame.gamestate.SnakeGame.timers[playerName])
         SnakeGame.gamestate.SnakeGame.timers[playerName] = nil
