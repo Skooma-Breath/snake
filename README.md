@@ -1,4 +1,4 @@
-# Snake Mod for TES3MP  
+# Snake for TES3MP  
 
 If you want to play snake in morrowind without running your own tes3mp server 
 you can join my public server **Fetcher Simulator 2025** to compete for a slot on the leaderboard.
