@@ -51,7 +51,11 @@ function handlersAndValidators.onGUIAction(eventStatus, pid, idGui, data)
             SnakeGame.gameLogic.stopGame(pid)
         end
     elseif idGui == SnakeGame.cfg.mainMenuId then
-        if tonumber(data) == 0 then     -- Start Game
+        if tonumber(data) == 0 then -- Start Game
+            --flip client variable for move sound
+            tes3mp.ClearClientGlobals()
+            tes3mp.AddClientGlobalInteger("snakegameactive", 1, enumerations.variableType.SHORT)
+            tes3mp.SendClientScriptGlobal(pid)
             SnakeGame.gamestate.initGameState(pid)
         elseif tonumber(data) == 1 then -- What's going on here?
             tes3mp.CustomMessageBox(pid, SnakeGame.cfg.ask_yagrum_id, SnakeGame.cfg.yagrums_explanation, "close;")
@@ -240,6 +244,26 @@ function handlersAndValidators.OnDeathTimeExpirationValidator(eventStatus, pid)
         tes3mp.Resurrect(pid, 0)
         return customEventHooks.makeEventStatus(false, false)
     end
+end
+
+function handlersAndValidators.OnPlayerAuthentified(eventStatus, pid)
+    if Players[pid].data.clientVariables == nil then
+        Players[pid].data.clientVariables = {}
+    end
+
+    if Players[pid].data.clientVariables.globals == nil then
+        Players[pid].data.clientVariables.globals = {}
+    end
+
+    -- grid snap globals
+    if Players[pid].data.clientVariables.globals.snakegameactive == nil then
+        Players[pid].data.clientVariables.globals.snakegameactive = { ["variableType"] = 0, ["intValue"] = 0 }
+    end
+
+    --flip client variable for move sound
+    tes3mp.ClearClientGlobals()
+    tes3mp.AddClientGlobalInteger("snakegameactive", 0, enumerations.variableType.SHORT)
+    tes3mp.SendClientScriptGlobal(pid)
 end
 
 return handlersAndValidators
