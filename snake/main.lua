@@ -508,6 +508,7 @@ customEventHooks.registerHandler("OnServerPostInit", SnakeGame.serverPostInit.On
 customEventHooks.registerHandler("OnObjectActivate", SnakeGame.handlersAndValidators.OnObjectActivateHandler)
 customEventHooks.registerHandler("OnPlayerCellChange", SnakeGame.handlersAndValidators.OnPlayerCellChangeHandler)
 customEventHooks.registerHandler("OnObjectDelete", SnakeGame.handlersAndValidators.OnObjectDeleteHandler)
+customEventHooks.registerHandler("OnPlayerAuthentified", SnakeGame.handlersAndValidators.OnPlayerAuthentifiedHandler)
 
 --validators
 -- customEventHooks.registerValidator("OnPlayerDeath", SnakeGame.handlersAndValidators.OnPlayerDeathValidator)
