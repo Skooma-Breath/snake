@@ -9,7 +9,7 @@ place the snake folder into your tes3mp/server/scripts/custom folder
 add this line to your tes3mp/server/scripts/customscripts.lua file:
 
 require("custom.snake.main")
-    
+
 ]]
 
 -- Load all the components
@@ -37,6 +37,10 @@ function UpdateGame(pid)
 
     -- Initialize segment indices if needed
     gameState.segmentIndices = gameState.segmentIndices or {}
+
+    -- Track previous direction for rotation optimization
+    gameState.previousDirection = gameState.previousDirection or gameState.direction
+    local directionChanged = gameState.previousDirection ~= gameState.direction
 
     -- Initialize snake array if needed
     gameState.snake = gameState.snake or {}
@@ -95,7 +99,8 @@ function UpdateGame(pid)
                             rotZ = bodyLocation.rotZ
                         }
 
-                        SnakeGame.helpers.ResendPlace(pid, bodySegmentIndex, cellDescription, true)
+                        -- Always skip rotation for body segments
+                        SnakeGame.helpers.ResendPlace(pid, bodySegmentIndex, cellDescription, true, true)
 
                         -- Add to tracked objects
                         table.insert(SnakeGame.gamestate.SnakeGame.gameObjects[playerName], {
@@ -202,7 +207,9 @@ function UpdateGame(pid)
             rotZ = headLocation.rotZ
         }
 
-        SnakeGame.helpers.ResendPlace(pid, gameState.headIndex, cellDescription, true)
+        -- Only send rotation update if direction changed
+        local skipRotate = not directionChanged
+        SnakeGame.helpers.ResendPlace(pid, gameState.headIndex, cellDescription, true, skipRotate)
 
         if SnakeGame.logging_enabled then
             tes3mp.LogMessage(enumerations.log.INFO,
@@ -315,7 +322,7 @@ function UpdateGame(pid)
             rotZ = bodyLocation.rotZ
         }
 
-        SnakeGame.helpers.ResendPlace(pid, bodySegmentIndex, cellDescription, true)
+        SnakeGame.helpers.ResendPlace(pid, bodySegmentIndex, cellDescription, true, true)
 
         if SnakeGame.logging_enabled then
             tes3mp.LogMessage(enumerations.log.INFO,
@@ -398,7 +405,7 @@ function UpdateGame(pid)
                         rotZ = 0
                     }
 
-                    SnakeGame.helpers.ResendPlace(pid, foodObj.uniqueIndex, foodObj.cell, true)
+                    SnakeGame.helpers.ResendPlace(pid, foodObj.uniqueIndex, foodObj.cell, true, true)
 
                     -- Remove it from tracked objects
                     for i, obj in ipairs(SnakeGame.gamestate.SnakeGame.gameObjects[playerName]) do
@@ -459,7 +466,7 @@ function UpdateGame(pid)
                     rotZ = foodLocation.rotZ
                 }
 
-                SnakeGame.helpers.ResendPlace(pid, uniqueIndex, cellDescription, true)
+                SnakeGame.helpers.ResendPlace(pid, uniqueIndex, cellDescription, true, true)
                 gameState.foodIndex = uniqueIndex
                 gameState.foodRefId = selectedFood
 
@@ -482,28 +489,14 @@ function UpdateGame(pid)
         end
     end
 
-    -- Apply move sound
-    local corpSound = "PlaySound3DVP, \"" .. SnakeGame.cfg.moveSound .. "\", 1.0, 1.0"
-    for otherPid, player in pairs(Players) do
-        table.insert(Players[otherPid].consoleCommandsQueued, corpSound)
-        -- tes3mp.LogAppend(enumerations.log.INFO, "------------------------- " .. "consoleCommand: " .. tostring(consoleCommand) .. "was queue'd for pid:  " .. tostring(otherPid))
-    end
-    table.insert(Players[pid].consoleCommandsQueued, corpSound)
-    tes3mp.ClearObjectList()
-    tes3mp.SetObjectListPid(pid)
-    tes3mp.SetObjectListCell(cellDescription)
-    tes3mp.SetObjectListConsoleCommand(corpSound)
-    local splitIndex = gameState.headIndex:split("-")
-    tes3mp.SetObjectRefNum(splitIndex[1])
-    tes3mp.SetObjectMpNum(splitIndex[2])
-    tes3mp.AddObject()
-    tes3mp.SendConsoleCommand(true, false)
-
     if SnakeGame.logging_enabled then
         tes3mp.LogMessage(enumerations.log.INFO,
             "[SnakeGame] Final snake state: length=" .. #gameState.snake ..
             ", head=(" .. newHead.x .. "," .. newHead.y .. ")")
     end
+
+    -- Update previous direction for next time
+    gameState.previousDirection = gameState.direction
 
     SnakeGame.gameLogic.startGameTimer(pid)
 end
@@ -517,7 +510,9 @@ customEventHooks.registerHandler("OnPlayerCellChange", SnakeGame.handlersAndVali
 customEventHooks.registerHandler("OnObjectDelete", SnakeGame.handlersAndValidators.OnObjectDeleteHandler)
 
 --validators
-customEventHooks.registerValidator("OnDeathTimeExpiration", SnakeGame.handlersAndValidators.OnDeathTimeExpirationValidator)
+-- customEventHooks.registerValidator("OnPlayerDeath", SnakeGame.handlersAndValidators.OnPlayerDeathValidator)
+customEventHooks.registerValidator("OnDeathTimeExpiration",
+    SnakeGame.handlersAndValidators.OnDeathTimeExpirationValidator)
 customEventHooks.registerValidator("OnPlayerItemUse", SnakeGame.handlersAndValidators.OnPlayerItemUseValidator)
 customEventHooks.registerValidator("OnPlayerInventory", SnakeGame.handlersAndValidators.OnPlayerInventoryValidator)
 
