@@ -40,6 +40,11 @@ function gamelogic.gameOver(pid, reason)
     local cellDescription = tes3mp.GetCell(pid)
     local yagrumIndex = SnakeGame.gamestate.SnakeGame.preCreatedObjects.yagrum.uniqueIndex
     local headIndex = SnakeGame.gamestate.SnakeGame.preCreatedObjects.head.uniqueIndex
+    
+    --flip client variable for move sound 
+    tes3mp.ClearClientGlobals()
+    tes3mp.AddClientGlobalInteger("snakegameactive", 0, enumerations.variableType.SHORT)
+    tes3mp.SendClientScriptGlobal(pid)
 
     -- Show game over message
     local message = reason .. "\nFinal Score: " .. gameState.score
