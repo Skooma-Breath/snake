@@ -30,7 +30,7 @@ function helpers.DeleteObject(pid, cellDescription, uniqueIndex, forEveryone)
     tes3mp.SendObjectDelete(forEveryone, false)
 end
 
-function helpers.ResendPlace(pid, uniqueIndex, cellDescription, forEveryone)
+function helpers.ResendPlace(pid, uniqueIndex, cellDescription, forEveryone, skipRotate)
     tes3mp.ClearObjectList()
     tes3mp.SetObjectListPid(pid)
     tes3mp.SetObjectListCell(cellDescription)
@@ -63,7 +63,20 @@ function helpers.ResendPlace(pid, uniqueIndex, cellDescription, forEveryone)
 
         -- Send ObjectMove instead of ObjectPlace to avoid recreating the object
         tes3mp.SendObjectMove(forEveryone, false)
-        tes3mp.SendObjectRotate(forEveryone, false)
+
+        -- Only send rotation if needed - log for debugging
+        if skipRotate then
+            if SnakeGame.logging_enabled then
+                tes3mp.LogMessage(enumerations.log.INFO,
+                    "[SnakeGame] ResendPlace: Skipping rotation for " .. uniqueIndex)
+            end
+        else
+            tes3mp.SendObjectRotate(forEveryone, false)
+            -- if SnakeGame.logging_enabled then
+                tes3mp.LogMessage(enumerations.log.INFO,
+                    "[SnakeGame] ResendPlace: Sending rotation for " .. uniqueIndex)
+            -- end
+        end
 
         if object.scale and object.scale ~= 1 then
             tes3mp.SendObjectScale(forEveryone, false)
@@ -72,7 +85,8 @@ function helpers.ResendPlace(pid, uniqueIndex, cellDescription, forEveryone)
         if SnakeGame.logging_enabled then
             tes3mp.LogMessage(enumerations.log.INFO,
                 "[SnakeGame] ResendPlace: Moved object " .. uniqueIndex .. " (" .. object.refId .. ") to position " ..
-                object.location.posX .. ", " .. object.location.posY .. ", " .. object.location.posZ)
+                object.location.posX .. ", " .. object.location.posY .. ", " .. object.location.posZ ..
+                (skipRotate and " (skipped rotation)" or " (with rotation)"))
         end
     else
         tes3mp.LogMessage(enumerations.log.ERROR, "[SnakeGame] ResendPlace: Invalid object data for " .. uniqueIndex)
@@ -400,7 +414,7 @@ end
 
 -- Restore cell from the most recent backup
 function helpers.RestoreCellFromBackup(pid, cellDescription)
-    local backupFilename = "custom/backup_" .. cellDescription .. ".json"
+    local backupFilename = "custom/snake_backup_" .. cellDescription .. ".json"
 
     -- Try to load the backup
     local backupData = jsonInterface.load(backupFilename)
@@ -436,6 +450,26 @@ function helpers.RestoreCellFromBackup(pid, cellDescription)
             ". No backup file found.")
 
         return false
+    end
+end
+
+function helpers.playSoundInCell(sound, index, cellDescription)
+    for i = 0, #Players do
+        if Players[i] ~= nil and Players[i]:IsLoggedIn() then
+            if Players[i].data.location.cell == cellDescription then
+                table.insert(Players[i].consoleCommandsQueued, sound)
+                logicHandler.RunConsoleCommandOnObject(i, sound, cellDescription, index, false)
+                tes3mp.ClearObjectList()
+                tes3mp.SetObjectListPid(i)
+                tes3mp.SetObjectListCell(cellDescription)
+                tes3mp.SetObjectListConsoleCommand(sound)
+                local splitIndex = index:split("-")
+                tes3mp.SetObjectRefNum(splitIndex[1])
+                tes3mp.SetObjectMpNum(splitIndex[2])
+                tes3mp.AddObject()
+                tes3mp.SendConsoleCommand(false, false)
+            end
+        end
     end
 end
 
