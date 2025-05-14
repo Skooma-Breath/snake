@@ -110,6 +110,10 @@ function handlersAndValidators.OnObjectActivateHandler(eventStatus, pid, cellDes
             return customEventHooks.makeEventStatus(false, false)
         elseif object.refId == "sg_leaderboard_book" then
             return customEventHooks.makeEventStatus(false, false)
+        elseif object.refId == "sg_snake_head" then
+            logicHandler.RunConsoleCommandOnObject(pid, 'say, "' .. SnakeGame.cfg.npcVoiceLines.caius[2] .. '", "WHA!"',
+                cellDescription, object.uniqueIndex, true)
+            return customEventHooks.makeEventStatus(false, false)
         end
     end
 end
