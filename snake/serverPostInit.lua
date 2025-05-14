@@ -14,7 +14,7 @@ function serverPostInit.SaveCellBackups()
 
     for _, cellDescription in ipairs(cells) do
         -- Create a backup filename
-        local backupFilename = "custom/backup_" .. cellDescription .. ".json"
+        local backupFilename = "custom/snake_backup_" .. cellDescription .. ".json"
 
         -- Check if the backup already exists
         if jsonInterface.load(backupFilename) == nil then
@@ -744,7 +744,8 @@ local function InitializeGameObjects()
         scale = 11.2
     }
     createObjects(cfg.roomCell, { dwemer_piping_object }, "place")
-    tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] Created " .. dwemer_piping_object.count .. " dwemer_piping_object")
+    tes3mp.LogMessage(enumerations.log.INFO,
+        "[SnakeGame] Created " .. dwemer_piping_object.count .. " dwemer_piping_object")
 
     -- brazier 1
     local brazier_1_location = {
@@ -807,7 +808,8 @@ local function InitializeGameObjects()
         scale = .4
     }
     createObjects(cfg.roomCell, { steam_fitting_1_object }, "place")
-    tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] Created " .. steam_fitting_1_object.count .. " steam_fitting_1_object")
+    tes3mp.LogMessage(enumerations.log.INFO,
+        "[SnakeGame] Created " .. steam_fitting_1_object.count .. " steam_fitting_1_object")
 
     -- 4 way steam fitting 2
     local steam_fitting_2_location = {
@@ -828,7 +830,8 @@ local function InitializeGameObjects()
         scale = .4
     }
     createObjects(cfg.roomCell, { steam_fitting_2_object }, "place")
-    tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] Created " .. steam_fitting_2_object.count .. " steam_fitting_2_object")
+    tes3mp.LogMessage(enumerations.log.INFO,
+        "[SnakeGame] Created " .. steam_fitting_2_object.count .. " steam_fitting_2_object")
 
     -- lava vent
     local inside_lava_vent_location = {
@@ -849,7 +852,8 @@ local function InitializeGameObjects()
         scale = 2
     }
     createObjects(cfg.roomCell, { inside_lava_vent_object }, "place")
-    tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] Created " .. inside_lava_vent_object.count .. " inside_lava_vent_object")
+    tes3mp.LogMessage(enumerations.log.INFO,
+        "[SnakeGame] Created " .. inside_lava_vent_object.count .. " inside_lava_vent_object")
 
     -- Save all the created object references to a global table or to disk
     SnakeGame.preCreatedObjects = objectsCreated
@@ -897,6 +901,10 @@ function serverPostInit.OnServerPostInitHandler()
         scriptText =
         'begin sg_snake_yagrum_script\nshort OnPCHitMe\nshort doOnce\nif doOnce == 0\n\tsetagility 1000000\n\tsethealth 1000000\n\taddspell sg_calm_creature\n\tset doOnce to 1\nendif\nif (OnPCHitMe == 1)\n\tsetangle z 150\nset OnPCHitMe to 0\nendif\nend\n'
     }
+    scriptStore.data.permanentRecords["sg_snake_head_script"] = {
+        scriptText =
+        'begin sg_snake_head_script\nfloat fTimer\nfloat updateInterval\n\nif ( fTimer == 0 )\n\tset updateInterval to ' .. SnakeGame.cfg.updateInterval .. '\nendif\n\nif ( SnakeGameActive == 1 )\n\tset fTimer to fTimer + GetSecondsPassed\n\tif ( fTimer >= updateInterval )\n\t\tPlaySound3DVP "corpDRAG", 1.0, 1.0\n\t\tset fTimer to 0\n\tendif\nendif\n\nend'
+    }
     scriptStore:QuicksaveToDrive()
 
     local miscStore = RecordStores["miscellaneous"]
@@ -918,6 +926,11 @@ function serverPostInit.OnServerPostInitHandler()
     miscStore.data.permanentRecords["sg_daedric_door"] = {
         model = "d\\Ex_DAE_door_load_oval.NIF",
         script = "sg_daedric_door_script",
+    }
+    miscStore.data.permanentRecords["sg_snake_head"] = {
+        model = "b\\B_N_Imperial_M_Head_01.nif",
+        script = "sg_snake_head_script",
+        name = "Caius Cosades Head"
     }
     miscStore:QuicksaveToDrive()
 
