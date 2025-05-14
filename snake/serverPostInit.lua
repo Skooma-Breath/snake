@@ -903,7 +903,9 @@ function serverPostInit.OnServerPostInitHandler()
     }
     scriptStore.data.permanentRecords["sg_snake_head_script"] = {
         scriptText =
-        'begin sg_snake_head_script\nfloat fTimer\nfloat updateInterval\n\nif ( fTimer == 0 )\n\tset updateInterval to ' .. SnakeGame.cfg.updateInterval .. '\nendif\n\nif ( SnakeGameActive == 1 )\n\tset fTimer to fTimer + GetSecondsPassed\n\tif ( fTimer >= updateInterval )\n\t\tPlaySound3DVP "corpDRAG", 1.0, 1.0\n\t\tset fTimer to 0\n\tendif\nendif\n\nend'
+            'begin sg_snake_head_script\nfloat fTimer\nfloat updateInterval\n\nif ( fTimer == 0 )\n\tset updateInterval to ' ..
+            SnakeGame.cfg.updateInterval ..
+            '\nendif\n\nif ( snakegameactive == 1 )\n\tset fTimer to fTimer + GetSecondsPassed\n\tif ( fTimer >= updateInterval )\n\t\tPlaySound3DVP "corpDRAG", 1.0, 1.0\n\t\tset fTimer to 0\n\tendif\nendif\n\nend'
     }
     scriptStore:QuicksaveToDrive()
 
@@ -1123,6 +1125,11 @@ function serverPostInit.OnServerPostInitHandler()
 
     -- Save backups of the cells used by the Snake Game
     serverPostInit.SaveCellBackups()
+
+    -- add snakegameactive client global to clientVariableScopes personal table
+    if not tableHelper.containsValue(clientVariableScopes.globals.personal, "SnakeGameActive", true) then
+        table.insert(clientVariableScopes.globals.personal, "snakegameactive")
+    end
 end
 
 return serverPostInit
