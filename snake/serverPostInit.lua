@@ -901,9 +901,6 @@ function serverPostInit.OnServerPostInitHandler()
         scriptText =
         'begin sg_snake_yagrum_script\nshort OnPCHitMe\nshort doOnce\nif doOnce == 0\n\tsetagility 1000000\n\tsethealth 1000000\n\taddspell sg_calm_creature\n\tset doOnce to 1\nendif\nif (OnPCHitMe == 1)\n\tsetangle z 150\nset OnPCHitMe to 0\nendif\nend\n'
     }
-    --TODO on ubuntu server:
-    -- Warning: sg_snake_head_script line 12, column 34 (snakegameactive): Parsing a non-variable string as a number: 0
-    --  and the sound doens't play
     scriptStore.data.permanentRecords["sg_snake_head_script"] = {
         scriptText =
             'begin sg_snake_head_script\nfloat fTimer\nfloat updateInterval\nshort gameActive\n\n; Initialize variables\nif ( fTimer == 0 )\n\tset updateInterval to ' ..
