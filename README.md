@@ -3,6 +3,8 @@
 If you want to play snake in morrowind without running your own tes3mp server 
 you can join my public server **Fetcher Simulator 2025** to compete for a slot on the leaderboard.
 
+https://youtu.be/Jk1iWXDc3vI
+
 ## Description  
 
 This mod adds a custom location near Balmora, eastern guard tower that takes you to the snake room, allowing players to enjoy a classic snake experience together on TES3MP.
