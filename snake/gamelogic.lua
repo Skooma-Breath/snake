@@ -44,7 +44,7 @@ function gamelogic.gameOver(pid, reason)
     --flip client variable for move sound 
     tes3mp.ClearClientGlobals()
     tes3mp.AddClientGlobalInteger("snakegameactive", 0, enumerations.variableType.SHORT)
-    tes3mp.SendClientScriptGlobal(pid)
+    tes3mp.SendClientScriptGlobal(pid, true, false)
 
     -- Show game over message
     local message = reason .. "\nFinal Score: " .. gameState.score
