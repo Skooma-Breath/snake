@@ -40,8 +40,8 @@ function gamelogic.gameOver(pid, reason)
     local cellDescription = tes3mp.GetCell(pid)
     local yagrumIndex = SnakeGame.gamestate.SnakeGame.preCreatedObjects.yagrum.uniqueIndex
     local headIndex = SnakeGame.gamestate.SnakeGame.preCreatedObjects.head.uniqueIndex
-    
-    --flip client variable for move sound 
+
+    --flip client variable for move sound
     tes3mp.ClearClientGlobals()
     tes3mp.AddClientGlobalInteger("snakegameactive", 0, enumerations.variableType.SHORT)
     tes3mp.SendClientScriptGlobal(pid, true, false)
@@ -170,7 +170,9 @@ function gamelogic.stopGame(pid)
         logicHandler.RunConsoleCommandOnPlayer(pid, "EnablePlayerControls", false)
         logicHandler.RunConsoleCommandOnPlayer(pid, "EnableVanityMode", false)
         logicHandler.RunConsoleCommandOnPlayer(pid, "EnablePlayerViewSwitch", false)
+        logicHandler.RunConsoleCommandOnPlayer(pid, "TM", false)
         logicHandler.RunConsoleCommandOnPlayer(pid, "removespell sg_levitate", true)
+        logicHandler.RunConsoleCommandOnPlayer(pid, "removespell sg_light", true)
 
         tes3mp.MessageBox(pid, -1, "Snake Game ended.")
         tes3mp.LogMessage(enumerations.log.INFO, "[SnakeGame] Game stopped for " .. playerName)
