@@ -50,6 +50,7 @@ function gamestate.initGameState(pid)
 
     --set player to levitate
     logicHandler.RunConsoleCommandOnPlayer(pid, "addspell sg_levitate", true)
+    logicHandler.RunConsoleCommandOnPlayer(pid, "addspell sg_light", true)
 
     if gamestate.SnakeGame.activePlayers[playerName] then
         tes3mp.LogMessage(enumerations.log.INFO,
@@ -191,162 +192,13 @@ function gamestate.initGameState(pid)
     logicHandler.RunConsoleCommandOnPlayer(pid, "DisableVanityMode", false)
     logicHandler.RunConsoleCommandOnPlayer(pid, "DisablePlayerViewSwitch", false)
     logicHandler.RunConsoleCommandOnPlayer(pid, "PCForce1stPerson", false)
+    logicHandler.RunConsoleCommandOnPlayer(pid, "TM", false)
 
     -- Start the game timer
     SnakeGame.gameLogic.startGameTimer(pid)
 
-    tes3mp.MessageBox(pid, -1, "Snake Game Started! Use chat commands: " ..
-        cfg.commands.up .. ", " ..
-        cfg.commands.down .. ", " ..
-        cfg.commands.left .. ", " ..
-        cfg.commands.right .. " to control the snake.")
+    tes3mp.MessageBox(pid, -1, "Snake Game Started! Use keys 1-4 to move the snake.\nleft down up right")
+
 end
-
--- Build the game room with walls
--- function gamestate.buildGameRoom(pid)
---     local cfg = SnakeGame.cfg
---     local helpers = SnakeGame.helpers
---     local playerName = string.lower(Players[pid].accountName)
---     local cellDescription = cfg.roomCell
-
---     gamestate.SnakeGame.gameObjects[playerName] = gamestate.SnakeGame.gameObjects[playerName] or {}
-
---     local wallLocation = {
---         posX = cfg.wallPosition.x,
---         posY = cfg.wallPosition.y,
---         posZ = cfg.wallPosition.z,
---         rotX = helpers.degToRad(-180),
---         rotY = 0,
---         rotZ = 0
---     }
-
---     local wallObject = {
---         refId = cfg.objects.wall,
---         count = 1,
---         charge = -1,
---         enchantmentCharge = -1,
---         soul = ""
---     }
-
---     local wallIndex = logicHandler.CreateObjectAtLocation(cellDescription,
---                                                          wallLocation,
---                                                          wallObject,
---                                                          "place")
-
---     helpers.setScale(pid, cellDescription, wallIndex, wallObject.refId, cfg.wallScale)
-
---     table.insert(gamestate.SnakeGame.gameObjects[playerName], {
---         uniqueIndex = wallIndex,
---         cell = cellDescription,
---         type = "wall"
---     })
-
---     tes3mp.LogMessage(enumerations.log.INFO,
---                     "[SnakeGame] Placed wall at (" .. cfg.roomPosition.x .. "," .. cfg.roomPosition.y .. ",0)")
-
---     local floorLocation = {
---         posX = cfg.roomPosition.x,
---         posY = cfg.roomPosition.y,
---         posZ = cfg.roomPosition.z - 23, -- Slightly below ground
---         rotX = 0,
---         rotY = 0,
---         rotZ = 0
---     }
-
---     local floorObject = {
---         refId = cfg.objects.floor, -- A flat object for the floor
---         count = 1,
---         charge = -1,
---         enchantmentCharge = -1,
---         soul = "",
---         scale = 1
---     }
-
---     local floorIndex = logicHandler.CreateObjectAtLocation(cellDescription,
---                                                floorLocation,
---                                                floorObject,
---                                                "place")
-
---     table.insert(gamestate.SnakeGame.gameObjects[playerName], {
---         uniqueIndex = floorIndex,
---         cell = cellDescription,
---         type = "floor"
---     })
-
---     -- Place markers along the full square border instead of just corners
---     local size = cfg.roomSize
---     local step = 1  -- step size in grid units
-
---     local markerObject = {
---         refId = cfg.objects.border,
---         count = 1,
---         charge = -1,
---         enchantmentCharge = -1,
---         soul = "",
---     }
-
---     for x = -1, size, step do
---         for y = -1, size, step do
---             -- Check if the current point is on the border
---             if x == -1 or x == size or y == -1 or y == size then
---                 local markerLocation = {
---                     posX = cfg.roomPosition.x + (x * 16),
---                     posY = cfg.roomPosition.y + (y * 16),
---                     posZ = cfg.roomPosition.z + 8,
---                     rotX = 0,
---                     rotY = 0,
---                     rotZ = 0
---                 }
-
---                 local markerIndex = logicHandler.CreateObjectAtLocation(cellDescription,
---                                                          markerLocation,
---                                                          markerObject,
---                                                          "place")
-
---                 helpers.setScale(pid, cellDescription, markerIndex, markerObject.refId, cfg.borderScale)
-
---                 table.insert(gamestate.SnakeGame.gameObjects[playerName], {
---                     uniqueIndex = markerIndex,
---                     cell = cellDescription,
---                     type = "marker"
---                 })
---             end
---         end
---     end
-
---     -- Add a specific custom marker with exact console coordinates and converted angles
---     local customMarkerLocation = {
---         posX = 120.0,
---         posY = 120.0,
---         posZ = -128.0,
---         rotX = helpers.degToRad(270.0),
---         rotY = helpers.degToRad(0.0),
---         rotZ = helpers.degToRad(90.0)
---     }
-
---     local markerIndex = logicHandler.CreateObjectAtLocation(cellDescription,
---                                              customMarkerLocation,
---                                              markerObject,
---                                              "place")
-
---     helpers.setScale(pid, cellDescription, markerIndex, markerObject.refId, 32)
-
---     table.insert(gamestate.SnakeGame.gameObjects[playerName], {
---         uniqueIndex = markerIndex,
---         cell = cellDescription,
---         type = "marker"
---     })
-
---     logicHandler.RunConsoleCommandOnPlayer(pid, "DisableVanityMode", false)
---     logicHandler.RunConsoleCommandOnPlayer(pid, "DisablePlayerViewSwitch", false)
---     logicHandler.RunConsoleCommandOnPlayer(pid, "PCForce1stPerson", false)
-
---     -- Teleport the player to the platform
---     tes3mp.SetCell(pid, cellDescription)
---     tes3mp.SetPos(pid, cfg.platformPosition.x, cfg.platformPosition.y, cfg.platformPosition.z + 1)
---     tes3mp.SetRot(pid, helpers.degToRad(60), 0)
---     tes3mp.SendCell(pid)
---     tes3mp.SendPos(pid)
--- end
 
 return gamestate
