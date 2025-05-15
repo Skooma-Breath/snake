@@ -55,7 +55,7 @@ function handlersAndValidators.onGUIAction(eventStatus, pid, idGui, data)
             --flip client variable for move sound
             tes3mp.ClearClientGlobals()
             tes3mp.AddClientGlobalInteger("snakegameactive", 1, enumerations.variableType.SHORT)
-            tes3mp.SendClientScriptGlobal(pid)
+            tes3mp.SendClientScriptGlobal(pid, true, false)
             SnakeGame.gamestate.initGameState(pid)
         elseif tonumber(data) == 1 then -- What's going on here?
             tes3mp.CustomMessageBox(pid, SnakeGame.cfg.ask_yagrum_id, SnakeGame.cfg.yagrums_explanation, "close;")
