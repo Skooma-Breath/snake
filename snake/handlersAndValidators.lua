@@ -250,7 +250,7 @@ function handlersAndValidators.OnDeathTimeExpirationValidator(eventStatus, pid)
     end
 end
 
-function handlersAndValidators.OnPlayerAuthentified(eventStatus, pid)
+function handlersAndValidators.OnPlayerAuthentifiedHandler(eventStatus, pid)
     if Players[pid].data.clientVariables == nil then
         Players[pid].data.clientVariables = {}
     end
