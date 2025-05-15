@@ -901,11 +901,14 @@ function serverPostInit.OnServerPostInitHandler()
         scriptText =
         'begin sg_snake_yagrum_script\nshort OnPCHitMe\nshort doOnce\nif doOnce == 0\n\tsetagility 1000000\n\tsethealth 1000000\n\taddspell sg_calm_creature\n\tset doOnce to 1\nendif\nif (OnPCHitMe == 1)\n\tsetangle z 150\nset OnPCHitMe to 0\nendif\nend\n'
     }
+    --TODO on ubuntu server:
+    -- Warning: sg_snake_head_script line 12, column 34 (snakegameactive): Parsing a non-variable string as a number: 0
+    --  and the sound doens't play
     scriptStore.data.permanentRecords["sg_snake_head_script"] = {
         scriptText =
-            'begin sg_snake_head_script\nfloat fTimer\nfloat updateInterval\n\nif ( fTimer == 0 )\n\tset updateInterval to ' ..
+            'begin sg_snake_head_script\nfloat fTimer\nfloat updateInterval\nshort gameActive\n\n; Initialize variables\nif ( fTimer == 0 )\n\tset updateInterval to ' ..
             SnakeGame.cfg.updateInterval ..
-            '\nendif\n\nif ( snakegameactive == 1 )\n\tset fTimer to fTimer + GetSecondsPassed\n\tif ( fTimer >= updateInterval )\n\t\tPlaySound3DVP "corpDRAG", 1.0, 1.0\n\t\tset fTimer to 0\n\tendif\nendif\n\nend'
+            '\nendif\n\n; Assign the global value to our local variable first\nset gameActive to snakegameactive\n\n; Now use the local variable for the check\nif ( gameActive )\n\tset fTimer to fTimer + GetSecondsPassed\n\tif ( fTimer >= updateInterval )\n\t\tPlaySound3DVP "corpDRAG", 1.0, 1.0\n\t\tset fTimer to 0\n\tendif\nendif\n\nend'
     }
     scriptStore:QuicksaveToDrive()
 
@@ -1052,6 +1055,24 @@ function serverPostInit.OnServerPostInitHandler()
             }
         }
     }
+    spellStore.data.permanentRecords["sg_light"] = {
+        name = "Gravity Displacement",
+        subtype = 1,
+        cost = 1,
+        flags = 0,
+        effects = {
+            {
+                id = enumerations.effects.LIGHT,
+                attribute = -1,
+                skill = -1,
+                rangeType = 0,
+                area = 0,
+                duration = -1,
+                magnitudeMax = 100,
+                magnitudeMin = 100
+            }
+        }
+    }
     spellStore:QuicksaveToDrive()
 
     -- QuickKeys for moving the snake ( 1, 2, 3, 4)
@@ -1127,7 +1148,7 @@ function serverPostInit.OnServerPostInitHandler()
     serverPostInit.SaveCellBackups()
 
     -- add snakegameactive client global to clientVariableScopes personal table
-    if not tableHelper.containsValue(clientVariableScopes.globals.personal, "SnakeGameActive", true) then
+    if not tableHelper.containsValue(clientVariableScopes.globals.personal, "snakegameactive", true) then
         table.insert(clientVariableScopes.globals.personal, "snakegameactive")
     end
 end
