@@ -3,7 +3,7 @@
 If you want to play snake in morrowind without running your own tes3mp server 
 you can join my public server **Fetcher Simulator 2025** to compete for a slot on the leaderboard.
 
-https://youtu.be/Jk1iWXDc3vI
+https://www.youtube.com/watch?v=Jk1iWXDc3vI
 
 ## Description  
 
